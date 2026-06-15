@@ -9,6 +9,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
   // 🔄 ESTADOS CLAVE PARA CONTROLAR LA EDICIÓN
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   // 🔄 PERSISTENCIA DE SESIÓN LOCAL: Al levantar el componente, chequeamos si ya estabas logueado
   useEffect(() => {
@@ -48,7 +49,7 @@ const handleAdminLoginSubmit = (e) => {
     e.preventDefault();
     setAdminError('');
 
-    fetch('http://localhost:8090/api/auth/login', {
+    fetch(`${apiUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -146,8 +147,8 @@ const handleAdminLoginSubmit = (e) => {
     };
 
     const url = isEditing 
-      ? `http://localhost:8090/api/propiedades/${editingId}` 
-      : 'http://localhost:8090/api/propiedades';
+      ? `${apiUrl}/api/propiedades/${editingId}` 
+      : `${apiUrl}/api/propiedades`;
 
     fetch(url, {
       method: isEditing ? 'PUT' : 'POST',
@@ -173,7 +174,7 @@ const handleAdminLoginSubmit = (e) => {
 
   const handleDeleteProperty = (id) => {
     if (window.confirm("¿Estás seguro de que querés eliminar esta propiedad?")) {
-      fetch(`http://localhost:8090/api/propiedades/${id}`, { method: 'DELETE' })
+      fetch(`${apiUrl}/api/propiedades/${id}`, { method: 'DELETE' })
       .then(response => {
         if (!response.ok) throw new Error('Error al eliminar');
         setProperties(properties.filter(prop => prop.id !== id));

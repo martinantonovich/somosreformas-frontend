@@ -21,7 +21,7 @@ const handleFooterContactSubmit = (e) => {
     };
 
     // 🚀 MANDAMOS LA CONSULTA AL BACKEND (Puerto 8090)
-    fetch('http://localhost:8090/api/consultas', {
+    fetch(`${apiUrl}/api/consultas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

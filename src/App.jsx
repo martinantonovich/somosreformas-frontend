@@ -14,10 +14,11 @@ export default function App() {
   // Arrancamos con el estado de propiedades vacío ([]) esperando al backend
   const [properties, setProperties] = useState([]);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   // 🔌 CONEXIÓN AL BACKEND: Traemos las propiedades reales al cargar la app
   useEffect(() => {
-    fetch('http://localhost:8090/api/propiedades')
+    fetch(`${apiUrl}/api/propiedades`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Error en la respuesta del servidor');
