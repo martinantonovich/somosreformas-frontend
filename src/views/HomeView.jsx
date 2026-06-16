@@ -125,35 +125,55 @@ return (
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {filteredProperties.map((property) => (
               <div key={property.id} className="bg-white rounded-2xl border border-neutral-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group">
+                
+                {/* Contenedor de la Imagen */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
                   <img src={property.coverImage} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <span className="absolute top-3 left-3 bg-slate-950 text-white text-[9px] font-extrabold uppercase px-2.5 py-1 rounded tracking-wider">{property.operation}</span>
-                  <span className="absolute top-3 right-3 text-[9px] font-extrabold uppercase px-2.5 py-1 rounded tracking-wider bg-emerald-600 text-white">{property.status}</span>
+                  
+                  {/* Badges adaptables (más chicas en mobile, normales en desktop) */}
+                  <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-slate-950 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider">
+                    {property.operation}
+                  </span>
+                  <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider bg-emerald-600 text-white">
+                    {property.status}
+                  </span>
                 </div>
 
-                <div className="p-5 flex-grow flex flex-col justify-between">
+                {/* Contenido de la Tarjeta */}
+                <div className="p-4 sm:p-5 flex-grow flex flex-col justify-between">
                   <div>
-                    <div className="flex justify-between items-baseline mb-2">
-                      <span className="text-lg font-black text-slate-950">USD {property.price.toLocaleString('es-AR')}</span>
-                      <span className="text-[10px] font-bold text-slate-400 bg-neutral-100 py-0.5 px-2 rounded">{property.type}</span>
+                    <div className="flex justify-between items-baseline mb-1.5 sm:mb-2">
+                      <span className="text-base sm:text-lg font-black text-slate-950">
+                        USD {property.price.toLocaleString('es-AR')}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-neutral-100 py-0.5 px-2 rounded">
+                        {property.type}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-bold flex items-center space-x-1 mb-2">📍 {property.location}</p>
-                    <h3 className="font-extrabold text-slate-800 text-sm group-hover:text-orange-600 transition-colors line-clamp-1">{property.title}</h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-2 font-light leading-relaxed">{property.description}</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-500 font-bold flex items-center space-x-1 mb-1.5">
+                      📍 {property.location}
+                    </p>
+                    <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm group-hover:text-orange-600 transition-colors line-clamp-1">
+                      {property.title}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 mt-1.5 font-light leading-relaxed">
+                      {property.description}
+                    </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-neutral-100">
-                    <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-4">
+                  {/* Info Técnica y Botón */}
+                  <div className="mt-3 sm:mt-4 pt-3 border-t border-neutral-100">
+                    <div className="flex justify-between text-[10px] sm:text-[11px] font-bold text-slate-600 mb-3 sm:mb-4">
                       <span>{property.rooms} Amb.</span>
                       <span>{property.beds} Dorm.</span>
                       <span>{property.sizeTotal} m²</span>
                     </div>
                     <button 
                       onClick={() => navigateToDetail(property)}
-                      className="w-full bg-slate-950 hover:bg-orange-600 text-white text-[11px] font-bold py-2.5 rounded-xl transition"
+                      className="w-full bg-slate-950 hover:bg-orange-600 text-white text-[10px] sm:text-[11px] font-bold py-2 sm:py-2.5 rounded-xl transition"
                     >
                       Ver proceso & detalles ➔
                     </button>

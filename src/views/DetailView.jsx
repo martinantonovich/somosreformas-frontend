@@ -18,7 +18,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   if (selectedProperty.services?.cloaca) listaServicios.push("Cloaca");
   if (selectedProperty.services?.internet) listaServicios.push("Internet");
 
-  // 📍 Generador unificado de URL para Google Maps usando la propiedad real de la base de datos
+  // 📍 Generador unificado de URL para Google Maps
   const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(selectedProperty.direccion + ", " + selectedProperty.location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 
   const getWhatsAppMessage = (property) => {
@@ -40,55 +40,56 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   };
 
   return (
-    <main className="flex-grow py-6 bg-gray-200 text-left font-sans">
+    <main className="flex-grow py-4 sm:py-6 bg-gray-100 text-left font-sans">
       <div className="max-w-6xl mx-auto px-4">
         
         {/* BOTÓN VOLVER */}
         <button 
           onClick={() => { setView('home'); setSelectedProperty(null); }}
-          className="mb-4 inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-orange-600 transition"
+          className="mb-4 inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-orange-600 transition p-1"
         >
           <span>❮ Volver al listado</span>
         </button>
 
-        {/* ENCABEZADO */}
+        {/* ENCABEZADO RESTRUCTURADO */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
-          <div>
+          <div className="w-full md:w-auto">
             <div className="flex flex-wrap gap-1.5 mb-2">
               <span className="bg-orange-100 text-orange-700 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.operation}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
               <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>
-              
-              {/* 🏛️ CORRECCIÓN: Leemos directamente de la propiedad del backend */}
               {selectedProperty.bankEligible === "Sí" && (
                 <span className="bg-blue-100 text-blue-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">Apto Banco</span>
               )}
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0">{selectedProperty.title}</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
-          <div className="bg-white border border-neutral-100 px-5 py-2.5 rounded-xl shadow-sm">
-            <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Valor</span>
-            <span className="text-xl font-black text-slate-900 font-mono">USD {selectedProperty.price.toLocaleString('es-AR')}</span>
+          {/* Valor adaptado a ancho completo en mobile */}
+          <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
+            <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
+            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">USD {selectedProperty.price.toLocaleString('es-AR')}</span>
           </div>
         </div>
 
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 lg:items-stretch">
-          <div className="lg:col-span-2 space-y-4 flex flex-col justify-between">
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden shadow-sm relative aspect-[16/9] w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2 space-y-3 flex flex-col justify-between">
+            {/* Imagen principal con aspect-ratio responsivo */}
+            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden shadow-sm relative aspect-[4/3] sm:aspect-[16/9] w-full">
               <img src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} alt="Propiedad" className="w-full h-full object-cover" />
               {selectedProperty.gallery?.length > 1 && (
                 <>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-8 h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white">❮</button>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-8 h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white">❯</button>
-                  <span className="absolute bottom-4 right-4 bg-slate-950/80 text-white text-[10px] font-bold px-3 py-1 rounded-full">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
+                  <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95">❮</button>
+                  <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95">❯</button>
+                  <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
                 </>
               )}
             </div>
+            {/* Carrusel de miniaturas */}
             {selectedProperty.gallery?.length > 1 && (
-              <div className="flex space-x-2 overflow-x-auto pb-1">
+              <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
                 {selectedProperty.gallery.map((img, idx) => (
-                  <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${currentGalleryIndex === idx ? 'border-orange-500 scale-95' : 'border-transparent opacity-70'}`}>
+                  <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all ${currentGalleryIndex === idx ? 'border-orange-500 scale-95' : 'border-transparent opacity-70'}`}>
                     <img src={img} alt="Mini" className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -96,83 +97,79 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             )}
           </div>
 
-          <div className="flex w-full">
-            <div className="bg-white border border-neutral-100 p-6 rounded-2xl shadow-sm flex flex-col justify-between w-full h-full">
-              <div className="space-y-4">
-                <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">✦ Asesoramiento Inmediato</span>
-                <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
-                  <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
-                  <p className="bg-white p-2.5 rounded border border-neutral-200/50 leading-relaxed font-mono italic text-slate-500 line-clamp-4 m-0">
-                    "{getWhatsAppMessage(selectedProperty)}"
-                  </p>
-                </div>
+          {/* Caja de Contacto */}
+          <div className="bg-white border border-neutral-100 p-4 sm:p-6 rounded-2xl shadow-sm flex flex-col justify-between w-full">
+            <div className="space-y-3">
+              <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">✦ Asesoramiento Inmediato</span>
+              <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
+                <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
+                <p className="bg-white p-2.5 rounded border border-neutral-200/50 leading-relaxed font-mono italic text-slate-500 line-clamp-3 sm:line-clamp-4 m-0">
+                  "{getWhatsAppMessage(selectedProperty)}"
+                </p>
               </div>
-              <div className="space-y-2 mt-6">
-                <button onClick={handleWhatsAppRedirect} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm active:scale-[0.99]">
-                  <span>Consultar por WhatsApp</span>
-                </button>
-                <button onClick={handleCopyLink} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2.5 rounded-lg text-xs font-bold text-center transition">
-                  🔗 Enlace de la ficha
-                </button>
-              </div>
+            </div>
+            <div className="space-y-2 mt-4 sm:mt-6">
+              <button onClick={handleWhatsAppRedirect} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm active:scale-[0.98]">
+                <span>Consultar por WhatsApp</span>
+              </button>
+              <button onClick={handleCopyLink} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98]">
+                🔗 Enlace de la ficha
+              </button>
             </div>
           </div>
         </div>
 
         {/* BLOQUE 2: FICHA TÉCNICA EXTENDIDA Y MAPA REAL */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-100 p-4 sm:p-6 shadow-sm space-y-5">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-4 pb-2 border-b border-neutral-100">Ficha Técnica Completa</h3>
+              <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-neutral-100">Ficha Técnica Completa</h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs mb-6">
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 text-xs mb-4">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Construidos</span>
-                  <span className="font-black text-slate-800">{selectedProperty.sizeCovered} m²</span>
+                  <span className="font-black text-slate-800">{selectedProperty.sizeCovered || selectedProperty.m2_cubiertos} m²</span>
                 </div>
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Totales</span>
-                  <span className="font-black text-slate-800">{selectedProperty.sizeTotal} m²</span>
+                  <span className="font-black text-slate-800">{selectedProperty.sizeTotal || selectedProperty.m2_totales} m²</span>
                 </div>
-                
-                {selectedProperty.sizeSemiCovered > 0 && (
-                  <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Semicubiertos</span>
-                    <span className="font-black text-slate-800">{selectedProperty.sizeSemiCovered} m²</span>
+                {(selectedProperty.sizeSemiCovered > 0 || selectedProperty.m2_semicubiertos > 0) && (
+                  <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Semicub.</span>
+                    <span className="font-black text-slate-800">{selectedProperty.sizeSemiCovered || selectedProperty.m2_semicubiertos} m²</span>
                   </div>
                 )}
-
-                {selectedProperty.sizeUncovered > 0 && (
-                  <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Descubiertos</span>
-                    <span className="font-black text-slate-800">{selectedProperty.sizeUncovered} m²</span>
+                {(selectedProperty.sizeUncovered > 0 || selectedProperty.m2_descubiertos > 0) && (
+                  <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Mts² Descub.</span>
+                    <span className="font-black text-slate-800">{selectedProperty.sizeUncovered || selectedProperty.m2_descubiertos} m²</span>
                   </div>
                 )}
-
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Ambientes</span>
-                  <span className="font-black text-slate-800">{selectedProperty.rooms}</span>
+                  <span className="font-black text-slate-800">{selectedProperty.rooms || selectedProperty.ambientes}</span>
                 </div>
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Dormitorios</span>
-                  <span className="font-black text-slate-800">{selectedProperty.beds}</span>
+                  <span className="font-black text-slate-800">{selectedProperty.beds || selectedProperty.dormitorios}</span>
                 </div>
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Baños</span>
-                  <span className="font-black text-slate-800">{selectedProperty.baths}</span>
+                  <span className="font-black text-slate-800">{selectedProperty.baths || selectedProperty.banos}</span>
                 </div>
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Piso / Planta</span>
-                  <span className="font-black text-slate-800">{selectedProperty.floor}</span>
+                  <span className="font-black text-slate-800">{selectedProperty.floor || selectedProperty.piso_planta || 'P.B.'}</span>
                 </div>
-                <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100">
+                <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Condición</span>
                   <span className="font-black text-emerald-600">A Estrenar</span>
                 </div>
               </div>
 
-              <div className="border-t border-neutral-100 pt-4">
-                <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider mb-3">Servicios Disponibles</h4>
+              <div className="border-t border-neutral-100 pt-3">
+                <h4 className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-2">Servicios Disponibles</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   {listaServicios.map((service, idx) => (
                     <div key={idx} className="flex items-center space-x-1.5 text-slate-700">
@@ -183,28 +180,27 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
                 </div>
               </div>
               
-              <div className="border-t border-neutral-100 pt-4 mt-4">
-                <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider mb-2">Descripción de la Propiedad</h4>
-                <p className="text-xs text-slate-600 leading-relaxed font-light whitespace-pre-line">{selectedProperty.description}</p>
+              <div className="border-t border-neutral-100 pt-3 mt-3">
+                <h4 className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1.5">Descripción de la Propiedad</h4>
+                <p className="text-xs text-slate-600 leading-relaxed font-light whitespace-pre-line">{selectedProperty.description || selectedProperty.descripcion}</p>
               </div>
             </div>
           </div>
 
-          {/* Ubicación y Mapa Dinámico */}
-          <div className="bg-white rounded-2xl border border-neutral-100 p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          {/* Ubicación y Mapa Dinámico Responsivo */}
+          <div className="bg-white rounded-2xl border border-neutral-100 p-4 sm:p-5 shadow-sm space-y-4 flex flex-col justify-between">
             <div>
               <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-neutral-100">Ubicación</h3>
-              <div className="flex items-start space-x-2 text-xs mb-3">
+              <div className="flex items-start space-x-2 text-xs mb-1">
                 <span className="text-base mt-0.5">📍</span>
                 <div>
-                  {/* 🏛️ CORRECCIÓN: dirección real de la BD */}
                   <strong className="text-slate-800 block">{selectedProperty.direccion}</strong>
-                  <span className="text-slate-500">{selectedProperty.location}</span>
+                  <span className="text-slate-500">{selectedProperty.location || selectedProperty.localidad}</span>
                 </div>
               </div>
             </div>
 
-            <div className="w-full flex-grow min-h-[220px] rounded-xl overflow-hidden border border-neutral-200 shadow-inner relative">
+            <div className="w-full flex-grow min-h-[180px] sm:min-h-[220px] rounded-xl overflow-hidden border border-neutral-200 shadow-inner relative">
               <iframe 
                 title="Google Maps Location"
                 width="100%" 
@@ -217,7 +213,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             </div>
 
             <button 
-              onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(selectedProperty.direccion + ", " + selectedProperty.location)}`, '_blank')}
+              onClick={() => window.open(`https://maps.google.com/maps?q=${encodeURIComponent(selectedProperty.direccion + ", " + (selectedProperty.location || selectedProperty.localidad))}`, '_blank')}
               className="w-full bg-slate-950 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs transition text-center"
             >
               Ver en Google Maps Grande ➔
@@ -225,10 +221,10 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           </div>
         </div>
 
-        {/* BLOQUE 3: ANTES Y DESPUÉS */}
+        {/* BLOQUE 3: ANTES Y DESPUÉS RESPONSIVO */}
         {selectedProperty.comparables?.length > 0 && (
-          <div className="bg-slate-950 text-white rounded-2xl p-6 shadow-xl border border-slate-800 w-full mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-900">
+          <div className="bg-slate-950 text-white rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800 w-full mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-4 border-b border-slate-900">
               <div>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">📐 El Proceso de Obra: Antes y Después</h3>
                 <p className="text-[11px] text-slate-400 mt-1">Deslizá el control central para visualizar el cambio estructural realizado por nuestro estudio.</p>
@@ -249,23 +245,25 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               ))}
             </div>
 
-            <div className="relative w-full aspect-[2/1] rounded-xl overflow-hidden bg-slate-900 select-none border border-slate-800">
+            {/* Fijo el aspect-ratio: [4/3] en celulares para ganar altura táctil, [2/1] en monitores */}
+            <div className="relative w-full aspect-[4/3] sm:aspect-[2/1] rounded-xl overflow-hidden bg-slate-900 select-none border border-slate-800">
               <img src={selectedProperty.comparables[activeComparableIndex].after} alt="Después" className="absolute inset-0 w-full h-full object-cover" />
-              <span className="absolute right-3 bottom-3 z-10 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow">Terminado a Estrenar</span>
+              <span className="absolute right-2 bottom-2 sm:right-3 sm:bottom-3 z-10 bg-emerald-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow">Terminado a Estrenar</span>
 
               <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${compareSliderVal}%` }}>
                 <img src={selectedProperty.comparables[activeComparableIndex].before} alt="Antes" className="absolute inset-0 h-full object-cover" style={{ width: '100%', maxWidth: 'none' }} />
-                <span className="absolute left-3 bottom-3 z-10 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap">Antes de la Reforma</span>
+                <span className="absolute left-2 bottom-2 sm:left-3 sm:bottom-3 z-10 bg-amber-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap">Antes de la Reforma</span>
               </div>
 
-              <div className="absolute inset-y-0 w-1 bg-white cursor-ew-resize flex items-center justify-center" style={{ left: `${compareSliderVal}%` }}>
-                <div className="w-6 h-6 rounded-full bg-orange-600 border-2 border-white shadow-xl flex items-center justify-center text-xs text-white pointer-events-none">↔</div>
+              {/* Barra central táctil más ancha en mobile para que quepa el dedo */}
+              <div className="absolute inset-y-0 w-1.5 bg-white cursor-ew-resize flex items-center justify-center" style={{ left: `${compareSliderVal}%` }}>
+                <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-xl flex items-center justify-center text-xs text-white pointer-events-none touch-none">↔</div>
               </div>
             </div>
 
             <div className="mt-4 flex items-center space-x-3">
               <span className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">Deslice para comparar</span>
-              <input type="range" min="0" max="100" value={compareSliderVal} onChange={(e) => setCompareSliderVal(e.target.value)} className="flex-grow h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" />
+              <input type="range" min="0" max="100" value={compareSliderVal} onChange={(e) => setCompareSliderVal(e.target.value)} className="flex-grow h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 py-1" />
             </div>
 
             <p className="mt-4 bg-slate-900/50 p-3 rounded-lg text-xs text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
@@ -273,7 +271,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             </p>
 
             <div className="mt-4 pt-4 border-t border-slate-900 text-xs text-slate-400 font-light">
-              <strong>Historia técnica:</strong> {selectedProperty.reformStory}
+              <strong>Historia técnica:</strong> {selectedProperty.reformStory || selectedProperty.historia_reforma}
             </div>
           </div>
         )}
