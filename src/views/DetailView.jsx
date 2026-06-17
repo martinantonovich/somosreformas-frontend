@@ -38,18 +38,39 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
       .then(() => triggerToast("¡Enlace listo para enviar copiado al portapapeles!", "success"))
       .catch(() => triggerToast("Error al copiar el enlace", "error"));
   };
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <main className="flex-grow py-4 sm:py-6 bg-gray-100 text-left font-sans">
       <div className="max-w-6xl mx-auto px-4">
         
-        {/* BOTÓN VOLVER */}
-        <button 
-          onClick={() => { setView('home'); setSelectedProperty(null); }}
-          className="mb-4 inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-orange-600 transition p-1"
-        >
-          <span>❮ Volver al listado</span>
-        </button>
+        {/* BOTÓN VOLVER Y LOGO RESPONSIVO */}
+        <div className="flex justify-between items-center mb-4 gap-2">
+          <button 
+            onClick={() => { setView('home'); setSelectedProperty(null); }}
+            className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-orange-600 transition p-1"
+          >
+            <span>❮ Volver al listado</span>
+          </button>
+
+          {/* 🏛️ LOGO OPTIMIZADO PARA PREVENIR EL DESBORDE (OVERFLOW) */}
+          <div 
+            className="flex items-center space-x-2.5 cursor-pointer group select-none max-w-[60%] sm:max-w-full" 
+            onClick={() => { setView('home'); setSelectedProperty(null); }}
+          >
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-950 text-white rounded flex items-center justify-center shadow-md group-hover:bg-orange-600 transition-colors duration-300 flex-shrink-0">
+              <span className="font-black text-[10px] sm:text-xs">SR</span>
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-light tracking-[0.18em] text-slate-900 block uppercase leading-none truncate">
+                somos<span className="font-extrabold text-orange-600">reformas</span>
+              </span>
+              <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold uppercase tracking-[0.12em] mt-1 block truncate">
+                real estate & premium design
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* ENCABEZADO RESTRUCTURADO */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
@@ -64,7 +85,6 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
-          {/* Valor adaptado a ancho completo en mobile */}
           <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
             <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
             <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">USD {selectedProperty.price.toLocaleString('es-AR')}</span>
@@ -74,22 +94,29 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2 space-y-3 flex flex-col justify-between">
-            {/* Imagen principal con aspect-ratio responsivo */}
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden shadow-sm relative aspect-[4/3] sm:aspect-[16/9] w-full">
-              <img src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} alt="Propiedad" className="w-full h-full object-cover" />
+            
+            {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
+            <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
+              <img 
+                src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} 
+                alt="Propiedad" 
+                className="w-full h-full object-contain cursor-zoom-in" 
+                onClick={() => setIsModalOpen(true)}
+              />
               {selectedProperty.gallery?.length > 1 && (
                 <>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95">❮</button>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95">❯</button>
-                  <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
+                  <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
+                  <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❯</button>
+                  <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full z-10">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
                 </>
               )}
             </div>
+
             {/* Carrusel de miniaturas */}
             {selectedProperty.gallery?.length > 1 && (
               <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
                 {selectedProperty.gallery.map((img, idx) => (
-                  <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all ${currentGalleryIndex === idx ? 'border-orange-500 scale-95' : 'border-transparent opacity-70'}`}>
+                  <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
                     <img src={img} alt="Mini" className="w-full h-full object-cover" />
                   </button>
                 ))}
@@ -245,19 +272,53 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               ))}
             </div>
 
-            {/* Fijo el aspect-ratio: [4/3] en celulares para ganar altura táctil, [2/1] en monitores */}
-            <div className="relative w-full aspect-[4/3] sm:aspect-[2/1] rounded-xl overflow-hidden bg-slate-900 select-none border border-slate-800">
-              <img src={selectedProperty.comparables[activeComparableIndex].after} alt="Después" className="absolute inset-0 w-full h-full object-cover" />
-              <span className="absolute right-2 bottom-2 sm:right-3 sm:bottom-3 z-10 bg-emerald-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow">Terminado a Estrenar</span>
+            {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
+            <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
+              <img 
+                src={selectedProperty.comparables[activeComparableIndex].after} 
+                alt="Después" 
+                className="w-full h-auto object-contain block"
+              />
+              <span className="absolute right-3 bottom-3 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">
+                Terminado a Estrenar
+              </span>
 
-              <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${compareSliderVal}%` }}>
-                <img src={selectedProperty.comparables[activeComparableIndex].before} alt="Antes" className="absolute inset-0 h-full object-cover" style={{ width: '100%', maxWidth: 'none' }} />
-                <span className="absolute left-2 bottom-2 sm:left-3 sm:bottom-3 z-10 bg-amber-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap">Antes de la Reforma</span>
+              <div 
+                className="absolute inset-y-0 left-0 overflow-hidden border-r border-white/40" 
+                style={{ width: `${compareSliderVal}%` }}
+              >
+                <img 
+                  src={selectedProperty.comparables[activeComparableIndex].before} 
+                  alt="Antes" 
+                  className="absolute top-0 left-0 h-full object-cover max-w-none" 
+                  style={{ 
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'left center'
+                  }} 
+                />
+                <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                  Antes de la Reforma
+                </span>
               </div>
 
-              {/* Barra central táctil más ancha en mobile para que quepa el dedo */}
-              <div className="absolute inset-y-0 w-1.5 bg-white cursor-ew-resize flex items-center justify-center" style={{ left: `${compareSliderVal}%` }}>
-                <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-xl flex items-center justify-center text-xs text-white pointer-events-none touch-none">↔</div>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={compareSliderVal} 
+                onChange={(e) => setCompareSliderVal(e.target.value)} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30"
+              />
+
+              <div 
+                className="absolute inset-y-0 w-0.5 bg-white pointer-events-none z-20 flex items-center justify-center" 
+                style={{ left: `${compareSliderVal}%` }}
+              >
+                <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-2xl flex items-center justify-center text-xs text-white">
+                  ↔
+                </div>
               </div>
             </div>
 
@@ -272,6 +333,49 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
 
             <div className="mt-4 pt-4 border-t border-slate-900 text-xs text-slate-400 font-light">
               <strong>Historia técnica:</strong> {selectedProperty.reformStory || selectedProperty.historia_reforma}
+            </div>
+          </div>
+        )}
+
+        {/* 🎬 MODAL PREMIUM INTEGRADO ADENTRO DEL RETURN (Abajo de todo el layout) */}
+        {isModalOpen && (
+          <div 
+            className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <button 
+              onClick={() => setIsModalOpen(false)} 
+              className="absolute top-4 right-4 text-white hover:text-orange-500 text-2xl font-bold bg-slate-900/60 w-10 h-10 rounded-full flex items-center justify-center transition z-50"
+            >
+              ✕
+            </button>
+
+            <div 
+              className="relative max-w-5xl max-h-[85vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} 
+                alt="Propiedad Grande" 
+                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+              />
+
+              {selectedProperty.gallery?.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} 
+                    className="absolute left-4 bg-slate-900/80 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold hover:bg-orange-600 transition z-40"
+                  >
+                    ❮
+                  </button>
+                  <button 
+                    onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} 
+                    className="absolute right-4 bg-slate-900/80 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold hover:bg-orange-600 transition z-40"
+                  >
+                    ❯
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

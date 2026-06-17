@@ -7,18 +7,21 @@ export default function Header({ setView, setSelectedProperty, view }) {
         
         {/* LOGO */}
         <div 
-          className="flex items-center space-x-3 cursor-pointer group" 
+          className="flex items-center space-x-2.5 cursor-pointer group select-none max-w-full" 
           onClick={() => { setView('home'); setSelectedProperty(null); }}
         >
-          <div className="w-11 h-11 bg-slate-950 text-white rounded flex items-center justify-center shadow-md group-hover:bg-orange-600 transition-colors duration-300">
-            <span className="font-bold text-sm">SR</span>
+          {/* Reducido de w-11/h-11 a w-9/h-9 para cuidar el ancho en mobile */}
+          <div className="w-9 h-9 bg-slate-950 text-white rounded flex items-center justify-center shadow-md group-hover:bg-orange-600 transition-colors duration-300 flex-shrink-0">
+            <span className="font-black text-xs">SR</span>
           </div>
           
-          <div className="flex flex-col">
-            <span className="text-sm font-light tracking-[0.25em] text-slate-900 block uppercase leading-none">
+          <div className="flex flex-col min-w-0">
+            {/* Ajustamos el tracking y tamaño responsivo para evitar el desborde */}
+            <span className="text-xs sm:text-sm font-light tracking-[0.18em] text-slate-900 block uppercase leading-none truncate">
               somos<span className="font-extrabold text-orange-600">reformas</span>
             </span>
-            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-[0.18em] mt-1.5 block">
+            {/* Reducido levemente el mt y el tracking */}
+            <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold uppercase tracking-[0.12em] mt-1 block truncate">
               real estate & premium design
             </span>
           </div>

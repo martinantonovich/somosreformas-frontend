@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 export default function AdminView({ setProperties, properties, setView, triggerToast }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [adminUsername, setAdminUsername] = useState('admin@somosreformas.com');
-  const [adminPassword, setAdminPassword] = useState('123456');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
   
   const [isEditing, setIsEditing] = useState(false);
@@ -118,18 +118,26 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     
     // 🎯 Combinar imágenes existentes y nuevas de forma limpia (Evita error 500)
     const imagenesPayload = [];
+
+    // 1. Agregamos la foto de portada actual
     if (newProp.coverImage?.trim()) {
       imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
     }
-    
-    // Agregamos las que ya estaban guardadas en la BD (Punto 1)
-    newProp.existingImages.forEach(img => {
-      if (img.urlImagen !== newProp.coverImage) {
-        imagenesPayload.push({ urlImagen: img.urlImagen, esPortada: false });
-      }
-    });
 
-    // Agregamos las nuevas URLs que se acaban de subir a Cloudinary
+    // 2. Mantenemos las imágenes secundarias que YA existían en la base de datos (Punto 2)
+    if (newProp.existingImages && newProp.existingImages.length > 0) {
+      newProp.existingImages.forEach(img => {
+        // Evitamos duplicar si por alguna razón quedó marcada como portada
+        if (img.urlImagen !== newProp.coverImage) {
+          imagenesPayload.push({ 
+            urlImagen: img.urlImagen || img.url_imagen, 
+            esPortada: false 
+          });
+        }
+      });
+    }
+
+    // 3. Sumamos las fotos nuevas que acabas de subir a Cloudinary en esta sesión
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
         if (url.trim()) imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
