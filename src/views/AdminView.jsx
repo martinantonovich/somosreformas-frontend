@@ -15,15 +15,13 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     if (loggedUser) setIsAdminLoggedIn(true);
   }, []);
   
-  // ⚡ ESTADO OPTIMIZADO: comparables ahora es un array nativo
   const [newProp, setNewProp] = useState({
     title: '', price: '', location: 'La Plata, Buenos Aires', operation: 'Venta', type: 'Departamento',
     rooms: '3', beds: '2', baths: '1', sizeBuilt: '', sizeTotal: '', sizeSemiCovered: '0', sizeUncovered: '0',
     floor: 'PB', bankEligible: 'Sí', address: '', description: '', reformStory: '',
-    coverImage: '', 
-    galleryUrls: '', // Aquí guardamos las URLs nuevas separadas por comas
-    existingImages: [], // 🎯 Guardamos las fotos que ya pertenecen a la propiedad al editar
-    comparables: [{ spaceName: 'Espacio Principal', before: '', after: '' }] // 🎯 Array de ambientes
+    coverImage: '', galleryUrls: '', existingImages: [], comparables: [],
+    latitud: '',
+    longitud: ''
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -163,6 +161,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       m2Cubiertos: parseInt(newProp.sizeBuilt) || 0, m2Totales: parseInt(newProp.sizeTotal) || 0,
       m2Semicubiertos: parseInt(newProp.sizeSemiCovered) || 0, m2Descubiertos: parseInt(newProp.sizeUncovered) || 0,
       direccion: newProp.address, pisoPlanta: newProp.floor, aptoBanco: newProp.bankEligible === "Sí",
+      latitud: parseFloat(newProp.latitud) || null,
+      longitud: parseFloat(newProp.longitud) || null,
       descripcion: newProp.description, historiaReforma: newProp.reformStory,
       imagenes: imagenesPayload,
       comparables: comparablesPayload(),
@@ -219,6 +219,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       floor: prop.floor || prop.pisoPlanta || 'PB',
       bankEligible: prop.bankEligible || (prop.aptoBanco ? 'Sí' : 'No'),
       address: prop.direccion || '',
+      latitud: prop.latitud ? prop.latitud.toString() : '',
+      longitud: prop.longitud ? prop.longitud.toString() : '',
       description: prop.description || prop.descripcion || '',
       reformStory: prop.reformStory || prop.historiaReforma || '',
       coverImage: coverUrl,
@@ -314,6 +316,17 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Dirección exacta</label>
                     <input type="text" required placeholder="Calle 20 e/ 39 y 40" value={newProp.address || ''} onChange={(e) => setNewProp({...newProp, address: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" />
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Latitud (Mapa)</label>
+                      <input type="number" step="any" placeholder="Ej: -34.9156" value={newProp.latitud || ''} onChange={(e) => setNewProp({...newProp, latitud: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Longitud (Mapa)</label>
+                      <input type="number" step="any" placeholder="Ej: -57.9598" value={newProp.longitud || ''} onChange={(e) => setNewProp({...newProp, longitud: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 italic mt-0.5">💡 Consejo: Buscá la ubicación en Google Maps, hacé clic derecho y copiá los dos números que te aparecen arriba de todo.</p>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Piso / Planta</label>
                     <input type="text" required value={newProp.floor || ''} onChange={(e) => setNewProp({...newProp, floor: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" />

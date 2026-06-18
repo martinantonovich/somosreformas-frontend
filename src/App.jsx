@@ -76,6 +76,8 @@ export default function App() {
             direccion: prop.direccion,
             description: prop.descripcion,
             reformStory: prop.historiaReforma,
+            latitud: prop.latitud,
+            longitud: prop.longitud,
             
             // 📸 Datos de imágenes relacionales 100% listos
             coverImage: coverImageUrl,

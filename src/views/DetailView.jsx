@@ -6,7 +6,9 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
 
   if (!selectedProperty) return null;
-
+    console.log("selectedProperty completo:", selectedProperty);
+    console.log("latitud:", selectedProperty.latitud);
+    console.log("longitud:", selectedProperty.longitud);
   // 🔋 Mapeo dinámico de servicios directo de la base de datos unificada
   const listaServicios = [];
   if (selectedProperty.services?.cocina) listaServicios.push("Cocina");
@@ -17,9 +19,21 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   if (selectedProperty.services?.gasNatural) listaServicios.push("Gas natural");
   if (selectedProperty.services?.cloaca) listaServicios.push("Cloaca");
   if (selectedProperty.services?.internet) listaServicios.push("Internet");
+  
+  const latitud = selectedProperty.latitud;
+  const longitud = selectedProperty.longitud;
+  const direccionDestino = selectedProperty.direccion || selectedProperty.address || '';
+  const localidadDestino = selectedProperty.localidad || selectedProperty.location || 'La Plata';
 
-  // 📍 Generador unificado de URL para Google Maps
-  const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(selectedProperty.direccion + ", " + selectedProperty.location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  // Embed (iframe) - sin cambios, ya funcionaba bien
+  const mapsEmbedUrl = (latitud && longitud)
+    ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16&output=embed`
+    : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15&output=embed`;
+
+  // ✅ URL para abrir en nueva pestaña — con pin en coordenada exacta
+  const urlGrande = (latitud && longitud)
+    ? `https://www.google.com/maps?q=${latitud},${longitud}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(direccionDestino + ", " + localidadDestino)}`;
 
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
@@ -39,7 +53,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
       .catch(() => triggerToast("Error al copiar el enlace", "error"));
   };
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  console.log("Coordenadas detectadas en Detalle:", latitud, longitud);
   return (
     <main className="flex-grow py-4 sm:py-6 bg-gray-100 text-left font-sans">
       <div className="max-w-6xl mx-auto px-4">
@@ -239,12 +253,13 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               ></iframe>
             </div>
 
-            <button 
-              onClick={() => window.open(`https://maps.google.com/maps?q=${encodeURIComponent(selectedProperty.direccion + ", " + (selectedProperty.location || selectedProperty.localidad))}`, '_blank')}
-              className="w-full bg-slate-950 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs transition text-center"
-            >
-              Ver en Google Maps Grande ➔
-            </button>
+<button 
+  onClick={() => window.open(urlGrande, '_blank')}
+  className="w-full bg-slate-950 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs transition text-center"
+>
+  Ver en Google Maps Grande ➔
+</button>
+
           </div>
         </div>
 
