@@ -290,6 +290,21 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     .catch(() => setAdminError("Error de autenticación."));
   };
 
+  const handleDeleteProperty = (id) => {
+    if (window.confirm("¿Estás seguro de que querés eliminar esta propiedad? Se borrarán también todas sus fotos.")) {
+      fetch(`${apiUrl}/api/propiedades/${id}`, { 
+        method: 'DELETE' 
+      })
+      .then(response => {
+        if (!response.ok) throw new Error();
+        // Filtramos el estado local para que desaparezca de la tabla al instante
+        setProperties(properties.filter(p => p.id !== id));
+        triggerToast("Propiedad eliminada correctamente.", "success");
+      })
+      .catch(() => triggerToast("Error al intentar eliminar la propiedad.", "error"));
+    }
+  };
+
   return (
     <main className="flex-grow py-6 sm:py-8 bg-slate-950 text-slate-100 text-left min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
