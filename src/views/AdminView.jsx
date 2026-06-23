@@ -142,7 +142,6 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
     }
     
-    // Mapeo adaptativo de imágenes previas para evitar duplicados
     if (newProp.existingImages) {
       newProp.existingImages.forEach(img => {
         const url = img.urlImagen || img.url_imagen || '';
@@ -152,33 +151,28 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       });
     }
     
-    // Inyección de nuevas URLs cargadas desde la galería de Cloudinary
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
-        if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
-          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
-        }
         if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
           imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
         }
       });
     }
 
-    // El comparador solo aplica a operaciones de tipo VENTA
     const comparablesPayload = newProp.operation === 'Venta' 
       ? newProp.comparables.filter(c => c.before?.trim() && c.after?.trim()).map(c => ({
           nombreEspacio: c.spaceName || 'Espacio Común',
           urlAntes: c.before.trim(),
           urlDespues: c.after.trim(),
-          description: "Reforma premium por Somos Reformas."
+          descripcion: "Reforma premium por Somos Reformas."
         }))
       : [];
 
+    // ✨ CORRECCIÓN CRÍTICA: Apuntamos exactamente a las variables del useState
     const propertyPayload = {
       titulo: newProp.title,
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
       precio: parseFloat(newProp.price) || 0,
-      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
       expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
       localidad: newProp.location,
       operacion: newProp.operation,
@@ -189,23 +183,22 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       longitud: parseFloat(newProp.longitud) || null,
       ambientes: parseInt(newProp.rooms) || 1,
       dormitorios: parseInt(newProp.beds) || 0,
-      dormitorios: parseInt(newProp.beds) || 0,
       banos: parseInt(newProp.baths) || 1,
-      m2Cubiertos: parseInt(newProp.sizeBuilt) || 0,
-      m2Totales: parseInt(newProp.sizeTotal) || 0,
-      m2Semicubiertos: parseInt(newProp.sizeSemiCovered) || 0,
-      m2Descubiertos: parseInt(newProp.sizeUncovered) || 0,
+      
+      // Macheo exacto con las variables de handleStartEdit
+      m2Cubiertos: parseInt(newProp.sizeBuilt || newProp.sizeCovered || 0),
+      m2Totales: parseInt(newProp.sizeTotal || 0),
+      m2Semicubiertos: parseInt(newProp.sizeSemiCovered || 0),
+      m2Descubiertos: parseInt(newProp.sizeUncovered || 0),
       
       estadoActual: newProp.estadoActual,
       antiguedad: parseInt(newProp.antiguedad) || 0,
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
       aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
-      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
       
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
-      servicioCloaca: newProp.servAgua,
       servicioCloaca: newProp.servAgua,
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
@@ -230,21 +223,63 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     .then((savedProperty) => {
       triggerToast(isEditing ? "¡Propiedad modificada con éxito!" : "¡Propiedad publicada con éxito!", "success");
       
-      // Mutación de estado en caliente (Sin hacer F5)
+      // Sincronizamos con el mapeador de App.jsx para que la lista no pierda el formato inglés
+      const formattedProperty = {
+        id: savedProperty.id,
+        title: savedProperty.titulo,
+        slug: savedProperty.slug,
+        price: savedProperty.precio,
+        location: savedProperty.localidad,
+        operation: savedProperty.operacion,
+        type: savedProperty.tipo,
+        rooms: savedProperty.ambientes,
+        beds: savedProperty.dormitorios,
+        baths: savedProperty.banos,
+        sizeTotal: savedProperty.m2Totales,
+        sizeCovered: savedProperty.m2Cubiertos,
+        sizeSemiCovered: savedProperty.m2Semicubiertos || 0,
+        sizeUncovered: savedProperty.m2Descubiertos || 0,
+        floor: savedProperty.pisoPlanta || 'PB',
+        bankEligible: savedProperty.aptoBanco ? 'Sí' : 'No',
+        direccion: savedProperty.direccion,
+        description: savedProperty.descripcion,
+        reformStory: savedProperty.historiaReforma,
+        latitud: savedProperty.latitud,
+        longitud: savedProperty.longitud,
+        coverImage: savedProperty.imagenes?.find(img => img.esPortada)?.urlImagen || newProp.coverImage,
+        gallery: savedProperty.imagenes?.filter(img => !img.esPortada).map(img => img.urlImagen) || [],
+        comparables: (savedProperty.comparables || []).map(c => ({
+          spaceName: c.nombreEspacio,
+          before: c.urlAntes,
+          after: c.urlDespues,
+          description: c.descripcion
+        })),
+        services: {
+          electricidad: savedProperty.servicioElectricidad,
+          gasNatural: savedProperty.servicioGasNatural,
+          cloaca: savedProperty.servicioCloaca
+        },
+        estadoActual: savedProperty.estadoActual,
+        antiguedad: savedProperty.antiguedad,
+        orientacion: savedProperty.orientacion,
+        cochera: savedProperty.cochera,
+        calefaccion: savedProperty.calefaccion,
+        sistemaAgua: savedProperty.sistemaAgua
+      };
+
       if (isEditing) {
-        setProperties(properties.map(p => p.id === editingId ? savedProperty : p));
+        setProperties(properties.map(p => p.id === editingId ? formattedProperty : p));
       } else {
-        setProperties([savedProperty, ...properties]);
+        setProperties([formattedProperty, ...properties]);
       }
       
-      // Reseteo limpio de los estados de edición
       setIsEditing(false);
       setEditingId(null);
       setView('home'); 
     })
     .catch((err) => {
       console.error(err);
-      triggerToast("Error de conexión al servidor al guardar.", "error");
+      triggerToast("Error al guardar.", "error");
     });
   };
 
@@ -306,7 +341,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  
+
   const handleAdminLoginSubmit = (e) => {
     e.preventDefault();
     setAdminError('');
@@ -359,8 +394,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
             <h3 className="font-bold text-white text-center mb-4">🔐 Autenticación</h3>
             {adminError && <div className="bg-red-900/30 border border-red-800 p-2.5 rounded text-xs text-red-400 text-center mb-3">{adminError}</div>}
             <form onSubmit={handleAdminLoginSubmit} className="space-y-3 text-xs">
-              <input type="email" autocomplete="off" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white" placeholder="Usuario" />
-              <input type="password" autocomplete="new-password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white" placeholder="Contraseña" />
+              <input type="email" autoComplete="off" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white" placeholder="Usuario" />
+              <input type="password" autoComplete="new-password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-white" placeholder="Contraseña" />
               <button type="submit" className="w-full bg-orange-600 p-3 rounded-xl font-bold uppercase text-white">Entrar</button>
             </form>
           </div>
@@ -610,7 +645,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                           <td className="py-3 font-semibold text-white">{p.titulo || p.title}</td>
                           <td className="py-3 text-slate-400">{p.tipo || p.type}</td>
                           <td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operacion === 'Venta' ? 'bg-orange-950 text-orange-400' : 'bg-blue-950 text-blue-400'}`}>{p.operacion || p.operation}</span></td>
-                          <td className="py-3 font-bold text-white font-mono">{p.operacion === 'Venta' ? 'USD' : 'ARS'} {(p.precio || p.price || 0).toLocaleString('es-AR')}</td>
+                          <td className="py-3 font-bold text-white font-mono">
+                            {p.operation === 'Venta' ? 'USD' : 'ARS'} {(p.price ?? 0).toLocaleString('es-AR')}
+                          </td>
                           <td className="py-3 text-right space-x-3 whitespace-nowrap">
                             <button onClick={() => { setView('home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
                             <button onClick={() => handleStartEdit(p)} className="text-amber-500 hover:text-amber-400 font-bold transition">Editar</button>

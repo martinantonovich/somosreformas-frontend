@@ -25,15 +25,15 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const direccionDestino = selectedProperty.direccion || selectedProperty.address || '';
   const localidadDestino = selectedProperty.localidad || selectedProperty.location || 'La Plata';
 
-  // Embed (iframe) - sin cambios, ya funcionaba bien
+  // 🔌 Embed (iframe) corregido con la sintaxis exacta de interpolación
   const mapsEmbedUrl = (latitud && longitud)
     ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16&output=embed`
     : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15&output=embed`;
 
-  // ✅ URL para abrir en nueva pestaña — con pin en coordenada exacta
+  // ✅ URL para abrir en nueva pestaña corregida
   const urlGrande = (latitud && longitud)
-    ? `https://www.google.com/maps?q=${latitud},${longitud}`
-    : `https://www.google.com/maps/search/${encodeURIComponent(direccionDestino + ", " + localidadDestino)}`;
+    ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16`
+    : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15`;
 
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
@@ -101,7 +101,9 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           </div>
           <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
             <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
-            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">USD {selectedProperty.price.toLocaleString('es-AR')}</span>
+            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
+              USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
+            </span>
           </div>
         </div>
 

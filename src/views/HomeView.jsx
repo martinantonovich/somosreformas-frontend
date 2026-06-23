@@ -9,11 +9,11 @@ export default function HomeView({ properties, navigateToDetail }) {
 
   const filteredProperties = useMemo(() => {
     return properties.filter(prop => {
-      const matchLoc = filterLocation === '' || prop.location.toLowerCase().includes(filterLocation.toLowerCase());
+      const matchLoc = filterLocation === '' || (prop.location || '').toLowerCase().includes(filterLocation.toLowerCase());
       const matchType = filterType === '' || prop.type === filterType;
       const matchOp = filterOperation === '' || prop.operation === filterOperation;
       const matchRooms = filterRooms === '' || prop.rooms === parseInt(filterRooms);
-      const matchPrice = filterMaxPrice === '' || prop.price <= parseInt(filterMaxPrice);
+      const matchPrice = filterMaxPrice === '' || (prop.price ?? 0) <= parseInt(filterMaxPrice);
       return matchLoc && matchType && matchOp && matchRooms && matchPrice;
     });
   }, [properties, filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice]);
@@ -26,23 +26,20 @@ export default function HomeView({ properties, navigateToDetail }) {
     setFilterMaxPrice('');
   };
 
-return (
+  return (
     <main id="seccion-filtros" className="bg-gray-100 flex-grow text-left">
       
       {/* SECCIÓN LEMA DE IMPACTO */}
       <section className="relative bg-slate-950 text-white py-20 overflow-hidden px-4 text-center">
         <div className="relative max-w-5xl mx-auto text-center flex flex-col items-center justify-center space-y-6">
-          
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight max-w-4xl mx-auto text-center text-white block w-full">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-400 block mt-2 text-center w-full">
               Compramos lo antiguo.<br /> Lo transformamos a nuevo.
             </span>
           </h1>
-          
           <p className="text-white text-xs sm:text-sm max-w-2xl mx-auto text-center leading-relaxed font-light block w-full">
             Seleccionamos ubicaciones estratégicas, realizamos una transformación arquitectónica integral con acabados de calidad, y te entregamos una propiedad premium a estrenar.
           </p>
-
         </div>
       </section>
 
@@ -95,9 +92,9 @@ return (
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Precio Máx (USD)</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Precio Máx</label>
               <input 
-                type="number" placeholder="Ej. 100000" value={filterMaxPrice}
+                type="number" placeholder="Monto máximo..." value={filterMaxPrice}
                 onChange={(e) => setFilterMaxPrice(e.target.value)}
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-orange-500 text-slate-700"
               />
@@ -133,12 +130,14 @@ return (
                 <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
                   <img src={property.coverImage} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   
-                  {/* Badges adaptables (más chicas en mobile, normales en desktop) */}
+                  {/* Badge de tipo de Operación */}
                   <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-slate-950 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider">
                     {property.operation}
                   </span>
+                  
+                  {/* ✨ CORRECCIÓN BADGE ESTADO: Muestra "A estrenar" en vez de property.status vacío */}
                   <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider bg-emerald-600 text-white">
-                    {property.status}
+                    {property.estadoActual || 'A Estrenar'}
                   </span>
                 </div>
 
@@ -146,8 +145,9 @@ return (
                 <div className="p-4 sm:p-5 flex-grow flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-baseline mb-1.5 sm:mb-2">
+                      {/* ✨ CORRECCIÓN CRÍTICA DE PRECIO Y MONEDA DINÁMICA */}
                       <span className="text-base sm:text-lg font-black text-slate-950">
-                        USD {property.price.toLocaleString('es-AR')}
+                        {property.operation === 'Venta' ? 'USD' : 'ARS'} {(property.price ?? 0).toLocaleString('es-AR')}
                       </span>
                       <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-neutral-100 py-0.5 px-2 rounded">
                         {property.type}
