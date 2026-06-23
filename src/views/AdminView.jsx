@@ -148,6 +148,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         const url = img.urlImagen || img.url_imagen || '';
         if (url && url.trim() !== newProp.coverImage?.trim()) {
           imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        const url = img.urlImagen || img.url_imagen || '';
+        if (url && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
         }
       });
     }
@@ -242,6 +245,10 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       setEditingId(null);
       setView('home'); 
     })
+    .catch((err) => {
+      console.error(err);
+      triggerToast("Error de conexión al servidor al guardar.", "error");
+    });
     .catch((err) => {
       console.error(err);
       triggerToast("Error de conexión al servidor al guardar.", "error");
