@@ -158,6 +158,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
           imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
         }
+        if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        }
       });
     }
 
@@ -176,6 +179,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
       precio: parseFloat(newProp.price) || 0,
       expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
+      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
       localidad: newProp.location,
       operacion: newProp.operation,
       tipo: newProp.type,
@@ -184,6 +188,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       latitud: parseFloat(newProp.latitud) || null,
       longitud: parseFloat(newProp.longitud) || null,
       ambientes: parseInt(newProp.rooms) || 1,
+      dormitorios: parseInt(newProp.beds) || 0,
       dormitorios: parseInt(newProp.beds) || 0,
       banos: parseInt(newProp.baths) || 1,
       m2Cubiertos: parseInt(newProp.sizeBuilt) || 0,
@@ -196,9 +201,11 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
       aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
+      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
       
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
+      servicioCloaca: newProp.servAgua,
       servicioCloaca: newProp.servAgua,
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
@@ -241,7 +248,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     });
   };
 
-  // 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
+// 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
   const handleStartEdit = (prop) => {
     setIsEditing(true);
     setEditingId(prop.id);
