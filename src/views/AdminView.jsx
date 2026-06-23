@@ -138,21 +138,30 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     e.preventDefault();
     
     const imagenesPayload = [];
-    if (newProp.coverImage?.trim()) imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
+    if (newProp.coverImage?.trim()) {
+      imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
+    }
+    
+    // Mapeo adaptativo de imágenes previas para evitar duplicados
     if (newProp.existingImages) {
       newProp.existingImages.forEach(img => {
-        if (img.urlImagen !== newProp.coverImage) {
-          imagenesPayload.push({ urlImagen: img.urlImagen || img.url_imagen, esPortada: false });
+        const url = img.urlImagen || img.url_imagen || '';
+        if (url && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
         }
       });
     }
+    
+    // Inyección de nuevas URLs cargadas desde la galería de Cloudinary
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
-        if (url.trim()) imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        }
       });
     }
 
-    // El comparador solo se calcula si es VENTA
+    // El comparador solo aplica a operaciones de tipo VENTA
     const comparablesPayload = newProp.operation === 'Venta' 
       ? newProp.comparables.filter(c => c.before?.trim() && c.after?.trim()).map(c => ({
           nombreEspacio: c.spaceName || 'Espacio Común',
@@ -166,7 +175,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       titulo: newProp.title,
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
       precio: parseFloat(newProp.price) || 0,
-      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : null,
+      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
       localidad: newProp.location,
       operacion: newProp.operation,
       tipo: newProp.type,
@@ -175,24 +184,22 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       latitud: parseFloat(newProp.latitud) || null,
       longitud: parseFloat(newProp.longitud) || null,
       ambientes: parseInt(newProp.rooms) || 1,
-      dormitorios: parseInt(newProp.beds) || 1,
+      dormitorios: parseInt(newProp.beds) || 0,
       banos: parseInt(newProp.baths) || 1,
       m2Cubiertos: parseInt(newProp.sizeBuilt) || 0,
       m2Totales: parseInt(newProp.sizeTotal) || 0,
       m2Semicubiertos: parseInt(newProp.sizeSemiCovered) || 0,
       m2Descubiertos: parseInt(newProp.sizeUncovered) || 0,
       
-      // Especificaciones añadidas
       estadoActual: newProp.estadoActual,
       antiguedad: parseInt(newProp.antiguedad) || 0,
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
-      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : null,
+      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
       
-      // Mapeo estructurado de Servicios
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
-      servicioCloaca: newProp.servAgua, // Usamos la de agua para la red general
+      servicioCloaca: newProp.servAgua,
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
       
@@ -209,13 +216,29 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(propertyPayload)
     })
-    .then(res => { if (!res.ok) throw new Error(); return res.json(); })
-    .then(() => {
-      triggerToast("¡Propiedad guardada!", "success");
-      setView('home'); 
-      window.location.reload();
+    .then(res => { 
+      if (!res.ok) throw new Error("Error en la respuesta del servidor."); 
+      return res.json(); 
     })
-    .catch(() => triggerToast("Error de conexión al servidor.", "error"));
+    .then((savedProperty) => {
+      triggerToast(isEditing ? "¡Propiedad modificada con éxito!" : "¡Propiedad publicada con éxito!", "success");
+      
+      // Mutación de estado en caliente (Sin hacer F5)
+      if (isEditing) {
+        setProperties(properties.map(p => p.id === editingId ? savedProperty : p));
+      } else {
+        setProperties([savedProperty, ...properties]);
+      }
+      
+      // Reseteo limpio de los estados de edición
+      setIsEditing(false);
+      setEditingId(null);
+      setView('home'); 
+    })
+    .catch((err) => {
+      console.error(err);
+      triggerToast("Error de conexión al servidor al guardar.", "error");
+    });
   };
 
   // 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
@@ -223,39 +246,40 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     setIsEditing(true);
     setEditingId(prop.id);
     
+    // Captura segura mapeando las llaves exactas que entrega el modelo Java de producción
     const rawImages = prop.imagenes || [];
-    const coverObj = rawImages.find(img => img.esPortada || img.portada);
-    const coverUrl = prop.coverImage || coverObj?.urlImagen || '';
+    const coverObj = rawImages.find(img => img.esPortada === true || img.portada === true);
+    const coverUrl = coverObj?.urlImagen || prop.coverImage || '';
 
-    const formattedComps = prop.comparables?.map(c => ({
+    const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.nombreEspacio || '',
       before: c.urlAntes || '',
       after: c.urlDespues || ''
-    })) || [];
+    }));
 
     setNewProp({
-      title: prop.titulo || prop.title || '',
-      price: prop.precio ? prop.precio.toString() : '',
-      expensas: prop.expensas ? prop.expensas.toString() : '0',
+      title: prop.titulo || '',
+      price: (prop.precio ?? '').toString(),
+      expensas: (prop.expensas ?? '0').toString(),
       location: prop.localidad || 'La Plata, Buenos Aires',
       operation: prop.operacion || 'Venta',
       type: prop.tipo || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
       longitud: prop.longitud ? prop.longitud.toString() : '',
-      rooms: prop.ambientes?.toString() || '1',
-      beds: prop.dormitorios?.toString() || '0',
-      baths: prop.banos?.toString() || '1',
-      sizeBuilt: (prop.m2Cubiertos || '').toString(),
-      sizeTotal: (prop.m2Totales || '').toString(),
-      sizeSemiCovered: (prop.m2Semicubiertos || '0').toString(),
-      sizeUncovered: (prop.m2Descubiertos || '0').toString(),
+      rooms: (prop.ambientes ?? '1').toString(),
+      beds: (prop.dormitorios ?? '0').toString(),
+      baths: (prop.banos ?? '1').toString(),
+      sizeBuilt: (prop.m2Cubiertos ?? '').toString(),
+      sizeTotal: (prop.m2Totales ?? '').toString(),
+      sizeSemiCovered: (prop.m2Semicubiertos ?? '0').toString(),
+      sizeUncovered: (prop.m2Descubiertos ?? '0').toString(),
       floor: prop.pisoPlanta || 'PB',
       estadoActual: prop.estadoActual || 'Excelente',
       antiguedad: prop.antiguedad ? prop.antiguedad.toString() : '',
       orientacion: prop.orientacion || 'Norte',
-      cochera: prop.cochera ? 'Sí' : 'No',
-      bankEligible: prop.aptoBanco ? 'Sí' : 'No',
+      cochera: prop.cochera === true ? 'Sí' : 'No',
+      bankEligible: prop.aptoBanco === true ? 'Sí' : 'No',
       servLuz: prop.servicioElectricidad ?? true,
       servGas: prop.servicioGasNatural ?? true,
       servAgua: prop.servicioCloaca ?? true,
@@ -265,7 +289,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       reformStory: prop.historiaReforma || '',
       coverImage: coverUrl,
       galleryUrls: '',
-      existingImages: rawImages.filter(img => !img.esPortada),
+      // ✨ CORRECCIÓN CRÍTICA: Filtra usando el atributo urlImagen nativo del modelo
+      existingImages: rawImages.filter(img => img.urlImagen !== coverUrl),
       comparables: formattedComps
     });
 
