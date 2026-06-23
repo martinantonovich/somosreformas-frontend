@@ -138,17 +138,26 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     e.preventDefault();
     
     const imagenesPayload = [];
-    if (newProp.coverImage?.trim()) imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
+    if (newProp.coverImage?.trim()) {
+      imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
+    }
+    
+    // Agregamos las fotos existentes de la galería cuidando de no duplicar la portada
     if (newProp.existingImages) {
       newProp.existingImages.forEach(img => {
-        if (img.urlImagen !== newProp.coverImage) {
-          imagenesPayload.push({ urlImagen: img.urlImagen || img.url_imagen, esPortada: false });
+        const url = img.urlImagen || img.url_imagen || '';
+        if (url && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
         }
       });
     }
+    
+    // Sumamos las nuevas subidas desde el input de galería
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
-        if (url.trim()) imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
+          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        }
       });
     }
 
@@ -166,7 +175,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       titulo: newProp.title,
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
       precio: parseFloat(newProp.price) || 0,
-      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : null,
+      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
       localidad: newProp.location,
       operacion: newProp.operation,
       tipo: newProp.type,
@@ -175,24 +184,22 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       latitud: parseFloat(newProp.latitud) || null,
       longitud: parseFloat(newProp.longitud) || null,
       ambientes: parseInt(newProp.rooms) || 1,
-      dormitorios: parseInt(newProp.beds) || 1,
+      dormitorios: parseInt(newProp.beds) || 0,
       banos: parseInt(newProp.baths) || 1,
       m2Cubiertos: parseInt(newProp.sizeBuilt) || 0,
       m2Totales: parseInt(newProp.sizeTotal) || 0,
       m2Semicubiertos: parseInt(newProp.sizeSemiCovered) || 0,
       m2Descubiertos: parseInt(newProp.sizeUncovered) || 0,
       
-      // Especificaciones añadidas
       estadoActual: newProp.estadoActual,
       antiguedad: parseInt(newProp.antiguedad) || 0,
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
-      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : null,
+      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
       
-      // Mapeo estructurado de Servicios
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
-      servicioCloaca: newProp.servAgua, // Usamos la de agua para la red general
+      servicioCloaca: newProp.servAgua,
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
       
@@ -209,13 +216,29 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(propertyPayload)
     })
-    .then(res => { if (!res.ok) throw new Error(); return res.json(); })
-    .then(() => {
-      triggerToast("¡Propiedad guardada!", "success");
-      setView('home'); 
-      window.location.reload();
+    .then(res => { 
+      if (!res.ok) throw new Error("Error en la respuesta del servidor."); 
+      return res.json(); 
     })
-    .catch(() => triggerToast("Error de conexión al servidor.", "error"));
+    .then((savedProperty) => {
+      triggerToast(isEditing ? "¡Propiedad modificada con éxito!" : "¡Propiedad publicada con éxito!", "success");
+      
+      // ✨ ACTUALIZACIÓN REACTIVA EN CALIENTE (Chau F5/Reload incómodo)
+      if (isEditing) {
+        setProperties(properties.map(p => p.id === editingId ? savedProperty : p));
+      } else {
+        setProperties([savedProperty, ...properties]);
+      }
+      
+      // Reseteamos estados del formulario de forma limpia
+      setIsEditing(false);
+      setEditingId(null);
+      setView('home'); 
+    })
+    .catch((err) => {
+      console.error(err);
+      triggerToast("Error de conexión al servidor al guardar.", "error");
+    });
   };
 
   // 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
