@@ -253,57 +253,60 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     setIsEditing(true);
     setEditingId(prop.id);
     
-    // Captura segura mapeando las llaves exactas que entrega el modelo Java de producción
-    const rawImages = prop.imagenes || [];
-    const coverObj = rawImages.find(img => img.esPortada === true || img.portada === true);
-    const coverUrl = coverObj?.urlImagen || prop.coverImage || '';
+    // 📸 Las imágenes ya vienen procesadas desde App.jsx en prop.gallery y prop.coverImage
+    const coverUrl = prop.coverImage || '';
+    const rawImages = prop.imagenes || []; // Respaldamos por si viene la colección cruda
 
+    // 📐 Los comparables ya vienen formateados desde App.jsx
     const formattedComps = (prop.comparables || []).map(c => ({
-      spaceName: c.nombreEspacio || '',
-      before: c.urlAntes || '',
-      after: c.urlDespues || ''
+      spaceName: c.spaceName || '',
+      before: c.before || '',
+      after: c.after || ''
     }));
 
     setNewProp({
-      title: prop.titulo || '',
-      price: (prop.precio ?? '').toString(),
+      title: prop.title || '', // Mapeado desde prop.title de App.jsx
+      price: (prop.price ?? '').toString(),
       expensas: (prop.expensas ?? '0').toString(),
-      location: prop.localidad || 'La Plata, Buenos Aires',
-      operation: prop.operacion || 'Venta',
-      type: prop.tipo || 'Departamento',
+      location: prop.location || 'La Plata, Buenos Aires',
+      operation: prop.operation || 'Venta',
+      type: prop.type || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
       longitud: prop.longitud ? prop.longitud.toString() : '',
-      rooms: (prop.ambientes ?? '1').toString(),
-      beds: (prop.dormitorios ?? '0').toString(),
-      baths: (prop.banos ?? '1').toString(),
-      sizeBuilt: (prop.m2Cubiertos ?? '').toString(),
-      sizeTotal: (prop.m2Totales ?? '').toString(),
-      sizeSemiCovered: (prop.m2Semicubiertos ?? '0').toString(),
-      sizeUncovered: (prop.m2Descubiertos ?? '0').toString(),
-      floor: prop.pisoPlanta || 'PB',
+      rooms: (prop.rooms ?? '1').toString(), // Mapeado desde prop.rooms de App.jsx
+      beds: (prop.beds ?? '0').toString(),   // Mapeado desde prop.beds de App.jsx
+      baths: (prop.baths ?? '1').toString(), // Mapeado desde prop.baths de App.jsx
+      sizeBuilt: (prop.sizeCovered ?? '').toString(), // Mapeado desde prop.sizeCovered de App.jsx
+      sizeTotal: (prop.sizeTotal ?? '').toString(),     // Mapeado desde prop.sizeTotal de App.jsx
+      sizeSemiCovered: (prop.sizeSemiCovered ?? '0').toString(),
+      sizeUncovered: (prop.sizeUncovered ?? '0').toString(),
+      floor: prop.floor || 'PB', // Mapeado desde prop.floor de App.jsx
       estadoActual: prop.estadoActual || 'Excelente',
       antiguedad: prop.antiguedad ? prop.antiguedad.toString() : '',
       orientacion: prop.orientacion || 'Norte',
-      cochera: prop.cochera === true ? 'Sí' : 'No',
-      bankEligible: prop.aptoBanco === true ? 'Sí' : 'No',
-      servLuz: prop.servicioElectricidad ?? true,
-      servGas: prop.servicioGasNatural ?? true,
-      servAgua: prop.servicioCloaca ?? true,
+      cochera: prop.cochera === true || prop.cochera === 'Sí' ? 'Sí' : 'No',
+      bankEligible: prop.bankEligible || 'Sí', // Mapeado desde prop.bankEligible de App.jsx
+      
+      // Servicios (Mapeados desde el sub-objeto .services de App.jsx)
+      servLuz: prop.services?.electricidad ?? true,
+      servGas: prop.services?.gasNatural ?? true,
+      servAgua: prop.services?.cloaca ?? true,
+      
       calefaccion: prop.calefaccion || 'Estufa',
       sistemaAgua: prop.sistemaAgua || 'Calefón',
-      description: prop.descripcion || '',
-      reformStory: prop.historiaReforma || '',
+      description: prop.description || '', // Mapeado desde prop.description de App.jsx
+      reformStory: prop.reformStory || '', // Mapeado desde prop.reformStory de App.jsx
       coverImage: coverUrl,
       galleryUrls: '',
-      // ✨ CORRECCIÓN CRÍTICA: Filtra usando el atributo urlImagen nativo del modelo
-      existingImages: rawImages.filter(img => img.urlImagen !== coverUrl),
+      // Mantenemos la referencia de imágenes crudas de Java para que handleFormSubmit las procese sin duplicar
+      existingImages: rawImages.length > 0 ? rawImages.filter(img => img.urlImagen !== coverUrl) : (prop.gallery || []).map(url => ({ urlImagen: url, esPortada: false })),
       comparables: formattedComps
     });
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
+  
   const handleAdminLoginSubmit = (e) => {
     e.preventDefault();
     setAdminError('');
