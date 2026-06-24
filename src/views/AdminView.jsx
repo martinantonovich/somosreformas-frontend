@@ -137,27 +137,29 @@ export default function AdminView({ setProperties, properties, setView, triggerT
   const handleFormSubmit = (e) => {
     e.preventDefault();
     
-    const imagenesPayload = [];
-    if (newProp.coverImage?.trim()) {
-      imagenesPayload.push({ urlImagen: newProp.coverImage.trim(), esPortada: true });
-    }
-    
-    if (newProp.existingImages) {
-      newProp.existingImages.forEach(img => {
-        const url = img.urlImagen || img.url_imagen || '';
-        if (url && url.trim() !== newProp.coverImage?.trim()) {
-          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
-        }
-      });
-    }
+    // Consolidamos todas las URLs de imágenes del formulario
+    let listaCompletaUrls = [...(newProp.existingImages || [])];
     
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
-        if (url.trim() && url.trim() !== newProp.coverImage?.trim()) {
-          imagenesPayload.push({ urlImagen: url.trim(), esPortada: false });
+        if (url.trim() && !listaCompletaUrls.includes(url.trim())) {
+          listaCompletaUrls.push(url.trim());
         }
       });
     }
+
+    // 🎯 REGLA DE NEGOCIO: La primera de la lista pasa a ser la de Portada (esPortada = true)
+    // El resto se insertan como secundarias (esPortada = false)
+    const imagenesPayload = [];
+    listaCompletaUrls.forEach((url, index) => {
+      if (index === 0) {
+        imagenesPayload.push({ urlImagen: url, esPortada: true });
+        // Se duplica al principio de las secundarias para que el carrusel público la contenga
+        imagenesPayload.push({ urlImagen: url, esPortada: false });
+      } else {
+        imagenesPayload.push({ urlImagen: url, esPortada: false });
+      }
+    });
 
     const comparablesPayload = newProp.operation === 'Venta' 
       ? newProp.comparables.filter(c => c.before?.trim() && c.after?.trim()).map(c => ({
@@ -168,7 +170,6 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         }))
       : [];
 
-    // ✨ CORRECCIÓN CRÍTICA: Apuntamos exactamente a las variables del useState
     const propertyPayload = {
       titulo: newProp.title,
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
@@ -184,25 +185,20 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       ambientes: parseInt(newProp.rooms) || 1,
       dormitorios: parseInt(newProp.beds) || 0,
       banos: parseInt(newProp.baths) || 1,
-      
-      // Macheo exacto con las variables de handleStartEdit
-      m2Cubiertos: parseInt(newProp.sizeBuilt || newProp.sizeCovered || 0),
+      m2Cubiertos: parseInt(newProp.sizeBuilt || 0),
       m2Totales: parseInt(newProp.sizeTotal || 0),
       m2Semicubiertos: parseInt(newProp.sizeSemiCovered || 0),
       m2Descubiertos: parseInt(newProp.sizeUncovered || 0),
-      
       estadoActual: newProp.estadoActual,
       antiguedad: parseInt(newProp.antiguedad) || 0,
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
       aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
-      
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
       servicioCloaca: newProp.servAgua,
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
-      
       descripcion: newProp.description,
       historiaReforma: newProp.operation === 'Venta' ? newProp.reformStory : '',
       imagenes: imagenesPayload,
@@ -210,6 +206,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     };
 
     const url = isEditing ? `${apiUrl}/api/propiedades/${editingId}` : `${apiUrl}/api/propiedades`;
+    console.log("✈️ ENVIANDO A URL:", url, "CON ID DE EDICIÓN:", editingId);
 
     fetch(url, {
       method: isEditing ? 'PUT' : 'POST',
@@ -223,7 +220,10 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     .then((savedProperty) => {
       triggerToast(isEditing ? "¡Propiedad modificada con éxito!" : "¡Propiedad publicada con éxito!", "success");
       
-      // Sincronizamos con el mapeador de App.jsx para que la lista no pierda el formato inglés
+      const primaryImg = savedProperty.imagenes?.find(img => img.esPortada)?.urlImagen || listaCompletaUrls[0];
+      const secondaryImgs = savedProperty.imagenes?.filter(img => !img.esPortada).map(img => img.urlImagen) || listaCompletaUrls.slice(1);
+
+      // Sincronizamos con el formato exacto en inglés que App.jsx distribuye a HomeView y DetailView
       const formattedProperty = {
         id: savedProperty.id,
         title: savedProperty.titulo,
@@ -246,13 +246,10 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         reformStory: savedProperty.historiaReforma,
         latitud: savedProperty.latitud,
         longitud: savedProperty.longitud,
-        coverImage: savedProperty.imagenes?.find(img => img.esPortada)?.urlImagen || newProp.coverImage,
-        gallery: savedProperty.imagenes?.filter(img => !img.esPortada).map(img => img.urlImagen) || [],
+        coverImage: primaryImg,
+        gallery: secondaryImgs.length > 0 ? secondaryImgs : [primaryImg],
         comparables: (savedProperty.comparables || []).map(c => ({
-          spaceName: c.nombreEspacio,
-          before: c.urlAntes,
-          after: c.urlDespues,
-          description: c.descripcion
+          spaceName: c.nombreEspacio, before: c.urlAntes, after: c.urlDespues, description: c.descripcion
         })),
         services: {
           electricidad: savedProperty.servicioElectricidad,
@@ -283,16 +280,40 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     });
   };
 
-// 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
+  // ✕ REMOVER UNA SOLA IMAGEN DE LA GALERÍA
+  const handleRemoveImage = (urlToRemove) => {
+    if (!urlToRemove) return;
+    setNewProp(prev => {
+      const filtradas = (prev.existingImages || []).filter(img => {
+        const urlStr = typeof img === 'string' ? img : (img.urlImagen || img.url_imagen || '');
+        return urlStr.trim() !== urlToRemove.trim();
+      });
+      return { ...prev, existingImages: filtradas };
+    });
+    triggerToast("Foto removida de la galería", "info");
+  };
+  
+  // 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
   const handleStartEdit = (prop) => {
     setIsEditing(true);
     setEditingId(prop.id);
     
-    // 📸 Las imágenes ya vienen procesadas desde App.jsx en prop.gallery y prop.coverImage
-    const coverUrl = prop.coverImage || '';
-    const rawImages = prop.imagenes || []; // Respaldamos por si viene la colección cruda
+    // 📸 Extraemos las URLs limpias como strings planos sin importar el formato
+    const rawImages = prop.imagenes || [];
+    const coverObj = rawImages.find(img => img.esPortada === true || img.portada === true);
+    const coverUrl = prop.coverImage || coverObj?.urlImagen || '';
 
-    // 📐 Los comparables ya vienen formateados desde App.jsx
+    const todasLasFotos = [];
+    if (coverUrl && coverUrl.trim()) todasLasFotos.push(coverUrl.trim());
+    
+    // Sumamos la galería asegurando strings limpios
+    const galleryUrls = prop.gallery || [];
+    galleryUrls.forEach(url => {
+      if (url && typeof url === 'string' && url.trim() !== coverUrl.trim()) {
+        todasLasFotos.push(url.trim());
+      }
+    });
+
     const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.spaceName || '',
       before: c.before || '',
@@ -300,42 +321,41 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     }));
 
     setNewProp({
-      title: prop.title || '', // Mapeado desde prop.title de App.jsx
+      title: prop.title || '',
       price: (prop.price ?? '').toString(),
       expensas: (prop.expensas ?? '0').toString(),
       location: prop.location || 'La Plata, Buenos Aires',
-      operation: prop.operation || 'Venta',
+      operation: prop.operation || 'Venta', // Garantiza leer el formato de App.jsx
       type: prop.type || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
       longitud: prop.longitud ? prop.longitud.toString() : '',
-      rooms: (prop.rooms ?? '1').toString(), // Mapeado desde prop.rooms de App.jsx
-      beds: (prop.beds ?? '0').toString(),   // Mapeado desde prop.beds de App.jsx
-      baths: (prop.baths ?? '1').toString(), // Mapeado desde prop.baths de App.jsx
-      sizeBuilt: (prop.sizeCovered ?? '').toString(), // Mapeado desde prop.sizeCovered de App.jsx
-      sizeTotal: (prop.sizeTotal ?? '').toString(),     // Mapeado desde prop.sizeTotal de App.jsx
+      rooms: (prop.rooms ?? '1').toString(),
+      beds: (prop.beds ?? '0').toString(),
+      baths: (prop.baths ?? '1').toString(),
+      sizeBuilt: (prop.sizeCovered || prop.sizeBuilt || '').toString(),
+      sizeTotal: (prop.sizeTotal ?? '').toString(),
       sizeSemiCovered: (prop.sizeSemiCovered ?? '0').toString(),
       sizeUncovered: (prop.sizeUncovered ?? '0').toString(),
-      floor: prop.floor || 'PB', // Mapeado desde prop.floor de App.jsx
-      estadoActual: prop.estadoActual || 'Excelente',
+      floor: prop.floor || 'PB',
+      estadoActual: prop.estadoActual || 'Excellent',
       antiguedad: prop.antiguedad ? prop.antiguedad.toString() : '',
       orientacion: prop.orientacion || 'Norte',
       cochera: prop.cochera === true || prop.cochera === 'Sí' ? 'Sí' : 'No',
-      bankEligible: prop.bankEligible || 'Sí', // Mapeado desde prop.bankEligible de App.jsx
+      bankEligible: prop.bankEligible || 'Sí',
       
-      // Servicios (Mapeados desde el sub-objeto .services de App.jsx)
       servLuz: prop.services?.electricidad ?? true,
       servGas: prop.services?.gasNatural ?? true,
       servAgua: prop.services?.cloaca ?? true,
       
       calefaccion: prop.calefaccion || 'Estufa',
       sistemaAgua: prop.sistemaAgua || 'Calefón',
-      description: prop.description || '', // Mapeado desde prop.description de App.jsx
-      reformStory: prop.reformStory || '', // Mapeado desde prop.reformStory de App.jsx
-      coverImage: coverUrl,
+      description: prop.description || '',
+      reformStory: prop.reformStory || '',
+      
+      existingImages: todasLasFotos, // Colección limpia de strings planos
       galleryUrls: '',
-      // Mantenemos la referencia de imágenes crudas de Java para que handleFormSubmit las procese sin duplicar
-      existingImages: rawImages.length > 0 ? rawImages.filter(img => img.urlImagen !== coverUrl) : (prop.gallery || []).map(url => ({ urlImagen: url, esPortada: false })),
+      coverImage: coverUrl,
       comparables: formattedComps
     });
 
@@ -571,18 +591,41 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                     </div>
                   </div>
                 </div>
-
-                {/* 📸 GALERÍA MULTIMEDIA */}
+                {/* 📸 GALERÍA MULTIMEDIA INTERACTIVA */}
                 <div className="border-t border-slate-800 pt-2 space-y-2">
-                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">Archivos Multimedia</span>
+                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">Administrador de Fotos</span>
+                  
+                  {/* Vista previa de imágenes cargadas con opción de borrar */}
+                  {newProp.existingImages?.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800/60">
+                      {newProp.existingImages.map((img, index) => {
+                        // Extraemos el string limpio de la URL de forma segura
+                        const urlString = typeof img === 'string' ? img : (img.urlImagen || img.url_imagen || '');
+                        if (!urlString) return null;
+
+                        return (
+                          <div key={index} className="relative aspect-video rounded overflow-hidden border border-slate-800 group bg-slate-900">
+                            <img src={urlString} alt="Cargada" className="w-full h-full object-cover" />
+                            {index === 0 && (
+                              <span className="absolute bottom-0 inset-x-0 bg-orange-600/90 text-white text-[7px] text-center uppercase font-black tracking-widest py-0.5">Portada</span>
+                            )}
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveImage(urlString)} 
+                              className="absolute top-0 right-0 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-bl flex items-center justify-center shadow hover:bg-red-700 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/60 space-y-1">
-                    <label className="block text-[9px] text-slate-400 font-bold uppercase">Foto Principal</label>
-                    <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'coverImage')} className="w-full text-slate-400 text-xs" />
-                  </div>
-                  <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/60 space-y-1">
-                    <label className="block text-[9px] text-slate-400 font-bold uppercase">Múltiples Fotos de la Galería</label>
+                    <label className="block text-[9px] text-slate-400 font-bold uppercase">Subir nuevas fotos a la galería</label>
                     <input type="file" accept="image/*" multiple onChange={(e) => uploadImagesToCloudinary(e, 'galleryUrls')} className="w-full text-slate-400 text-xs cursor-pointer" />
-                    <textarea readOnly rows="1" placeholder="URLs subidas..." value={newProp.galleryUrls || ''} className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[9px] font-mono mt-1" />
+                    <textarea readOnly rows="1" placeholder="Nuevas URLs listas..." value={newProp.galleryUrls || ''} className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[9px] font-mono mt-1" />
                   </div>
                 </div>
 
