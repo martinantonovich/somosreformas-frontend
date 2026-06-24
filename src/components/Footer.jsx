@@ -9,7 +9,9 @@ export default function Footer({ setView, triggerToast }) {
     consulta: ''
   });
 
-const handleFooterContactSubmit = (e) => {
+  const apiUrl = 'https://c4a7-2800-810-5f2-50-d9e1-b491-2e45-2184.ngrok-free.app/webhook-test/consultas-web';
+
+  const handleFooterContactSubmit = (e) => {
     e.preventDefault();
 
     // 📦 Modelamos el payload exacto que espera la entidad Consulta de Spring Boot
@@ -21,7 +23,7 @@ const handleFooterContactSubmit = (e) => {
     };
 
     // 🚀 MANDAMOS LA CONSULTA AL BACKEND (Puerto 8090)
-    fetch(`${apiUrl}/api/consultas`, {
+    fetch(`${apiUrl}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
