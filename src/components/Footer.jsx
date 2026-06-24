@@ -9,7 +9,8 @@ export default function Footer({ setView, triggerToast }) {
     consulta: ''
   });
 
-  const apiUrl = 'https://c4a7-2800-810-5f2-50-d9e1-b491-2e45-2184.ngrok-free.app/webhook-test/consultas-web';
+  //const apiUrl = 'https://c4a7-2800-810-5f2-50-d9e1-b491-2e45-2184.ngrok-free.app/webhook-test/consultas-web';
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   const handleFooterContactSubmit = (e) => {
     e.preventDefault();
@@ -19,11 +20,13 @@ export default function Footer({ setView, triggerToast }) {
       nombre: `${footerContact.nombre.trim()} ${footerContact.apellido.trim()}`,
       email: footerContact.email,
       telefono: footerContact.celular,
-      mensaje: footerContact.consulta
+      mensaje: footerContact.consulta,
+      id_propiedad: null,
+      origen: "footer"
     };
 
     // 🚀 MANDAMOS LA CONSULTA AL BACKEND (Puerto 8090)
-    fetch(`${apiUrl}`, {
+    fetch(`${apiUrl}/api/consultas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
