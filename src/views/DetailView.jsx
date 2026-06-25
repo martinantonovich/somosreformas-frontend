@@ -35,23 +35,54 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
     ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16`
     : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15`;
 
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
     return `¡Hola Somos Reformas! Estoy interesado/a en la propiedad: "${property.title}" ubicada en ${property.location}. Me gustaría agendar una visita.`;
   };
 
   const handleWhatsAppRedirect = () => {
+    // 1. Armamos el mensaje en base a tu lógica original
     const textEncoded = encodeURIComponent(getWhatsAppMessage(selectedProperty));
     const waUrl = `https://wa.me/5492216397424?text=${textEncoded}`;
+
+    // 2. 🚀 DETONADOR EN SEGUNDO PLANO PARA N8N
+    // Generamos el lead con el origen "detalle_propiedad" para registrarlo en Google Sheets
+    const leadPayload = {
+      nombre: "Interesado Directo (Click WhatsApp)",
+      email: "Click en Ficha",
+      telefono: "Ver en chat de WhatsApp",
+      mensaje: `El usuario solicitó asesoramiento inmediato por la propiedad: "${selectedProperty.title}"`,
+      id_propiedad: selectedProperty.id, // Pasamos el ID dinámico
+      origen: "detalle_propiedad"       // El origen clave que lee tu n8n
+    };
+
+    // Le pegamos a tu API de Spring Boot de forma silenciosa
+    fetch(`${apiUrl}/api/consultas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(leadPayload)
+    })
+    .then(res => {
+      if (res.ok) console.log("🚀 Lead de ficha trackeado correctamente en la solapa consultas_web");
+    })
+    .catch(err => console.error("Error registrando lead en n8n:", err));
+
+    // 3. Abrimos el WhatsApp de inmediato sin demoras para el usuario
     window.open(waUrl, '_blank');
   };
 
   const handleCopyLink = () => {
-    const customUrl = `https://somosreformas.com/propiedades/${selectedProperty.slug}`;
+    // 🎯 CAMBIO CLAVE: Cambiamos la ruta '/propiedades/slug' (que te daría 404 en Vercel)
+    // por la raíz de la página usando '?propId='. window.location.origin se adapta automáticamente
+    // si estás probando en localhost o si ya estás en el dominio final.
+    const customUrl = `${window.location.origin}/?propId=${selectedProperty.id}`;
+
     navigator.clipboard.writeText(customUrl)
       .then(() => triggerToast("¡Enlace listo para enviar copiado al portapapeles!", "success"))
       .catch(() => triggerToast("Error al copiar el enlace", "error"));
   };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   console.log("Coordenadas detectadas en Detalle:", latitud, longitud);
   return (

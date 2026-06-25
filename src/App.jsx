@@ -28,8 +28,7 @@ export default function App() {
       .then(data => {
         const mappedProperties = data.map(prop => {
           
-          // 1. Buscamos la portada contemplando cómo Jackson formatea los booleanos (esPortada, es_portada o portada)
-          console.log(`📸 Imágenes crudas de la propiedad ${prop.titulo}:`, prop.imagenes);
+          // 1. Buscamos la portada contemplando cómo Jackson formatea los booleanos
           const imagenPortadaObj = prop.imagenes?.find(img => 
             img.esPortada === true || img.es_portada === true || img.portada === true
           );
@@ -38,24 +37,24 @@ export default function App() {
             ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
             : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200';
 
-          // 2. Filtramos el resto de las imágenes excluyendo la que detectamos como portada
+          // 2. Filtramos el resto de las imágenes excluyendo la portada
           const galeriaUrls = prop.imagenes?.filter(img => 
             !(img.esPortada === true || img.es_portada === true || img.portada === true)
           ).map(img => img.urlImagen || img.url_imagen) || [];
           
-          // Si no tiene imágenes secundarias, le metemos la portada para que el carrusel tenga al menos una
           if (galeriaUrls.length === 0) {
             galeriaUrls.push(coverImageUrl);
           }
 
-          // 3. Mapeamos los comparables apuntando al atributo real 'descripcion' de tu Java
+          // 3. Mapeamos los comparables
           const comparablesMapeados = prop.comparables?.map(comp => ({
-            spaceName: comp.nombreEspacio || 'Espacio Principal', // Machea con tu getter de Java
+            spaceName: comp.nombreEspacio || 'Espacio Principal', 
             before: comp.urlAntes,
             after: comp.urlDespues,
-            description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.' // 👈 Apunta a comp.descripcion
+            description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.' 
           })) || [];
 
+          // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen
           return {
             id: prop.id,
             title: prop.titulo,
@@ -78,32 +77,43 @@ export default function App() {
             reformStory: prop.historiaReforma,
             latitud: prop.latitud,
             longitud: prop.longitud,
-            
-            // 📸 Datos de imágenes relacionales 100% listos
             coverImage: coverImageUrl,
             gallery: galeriaUrls,
             comparables: comparablesMapeados,
-
             services: {
-              cocina: prop.servicioCocina,
-              aguaCaliente: prop.servicioAguaCaliente,
               electricidad: prop.servicioElectricidad,
-              pavimento: prop.servicioPavimento,
-              cable: prop.servicioCable,
               gasNatural: prop.servicioGasNatural,
-              cloaca: prop.servicioCloaca,
-              internet: prop.servicioInternet
-            }
+              cloaca: prop.servicioCloaca
+            },
+            estadoActual: prop.estadoActual,
+            antiguedad: prop.antiguedad,
+            orientacion: prop.orientacion,
+            cochera: prop.cochera ? 'Sí' : 'No',
+            calefaccion: prop.calefaccion,
+            sistemaAgua: prop.sistemaAgua
           };
         });
-        console.log("🔍 PROPIEDADES MAPEADAS DESDE POSTGRES:", mappedProperties);
+
+        // Guardamos la lista completa mapeada en tu estado global
         setProperties(mappedProperties);
+
+        // 🎯 DEEP LINKING INTERCEPTOR: Evaluamos si el cliente viene desde el mail con un ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const propId = urlParams.get('propId');
+        
+        if (propId) {
+          const propiedadEncontrada = mappedProperties.find(p => p.id === parseInt(propId));
+          if (propiedadEncontrada) {
+            // ⚠️ Ojo: Revisá si tus funciones/estados en App.jsx se llaman exactamente así:
+            setSelectedProperty(propiedadEncontrada); // El estado que almacena la propiedad para el Detalle
+            setView('detail'); // Setea la vista para renderizar la ficha
+          }
+        }
       })
       .catch(error => {
-        console.error("Error conectando a la API:", error);
-        triggerToast("No se pudo conectar con el servidor de datos.", "error");
+        console.error("Error cargando propiedades en el inicio:", error);
       });
-  }, []); // El array vacío asegura que esto corra una sola vez al prender la web
+  }, []); // Se ejecuta una sola vez al montar la aplicación
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
