@@ -217,49 +217,68 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       if (!res.ok) throw new Error("Error en la respuesta del servidor."); 
       return res.json(); 
     })
-    .then((savedProperty) => {
+.then((savedProperty) => {
       triggerToast(isEditing ? "¡Propiedad modificada con éxito!" : "¡Propiedad publicada con éxito!", "success");
       
-      const primaryImg = savedProperty.imagenes?.find(img => img.esPortada)?.urlImagen || listaCompletaUrls[0];
-      const secondaryImgs = savedProperty.imagenes?.filter(img => !img.esPortada).map(img => img.urlImagen) || listaCompletaUrls.slice(1);
+      // 📸 1. Extracción ultra segura de la portada contemplando cómo Jackson formatea los booleanos
+      const imagenPortadaObj = savedProperty.imagenes?.find(img => 
+        img.esPortada === true || img.es_portada === true || img.portada === true
+      );
+      const primaryImg = imagenPortadaObj 
+        ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
+        : listaCompletaUrls[0];
+
+      // 📸 2. Filtramos el resto de las imágenes excluyendo la portada para evitar duplicados desordenados
+      const filtradasSinPortada = savedProperty.imagenes?.filter(img => 
+        !(img.esPortada === true || img.es_portada === true || img.portada === true)
+      ).map(img => img.urlImagen || img.url_imagen).filter(Boolean) || listaCompletaUrls.slice(1);
+
+      // 🎯 Regla de negocio: Forzamos que la foto de portada quede siempre como primera en la galería secundaria
+      const galleryFinal = [primaryImg, ...filtradasSinPortada.filter(url => url !== primaryImg)];
+
+      // 📐 3. Mapeo seguro de comparables (Antes y Después) resolviendo las propiedades en inglés/español
+      const comparablesFinal = (savedProperty.comparables || []).map(c => ({
+        spaceName: c.spaceName || c.nombreEspacio || c.nombre_espacio || 'Espacio Principal', 
+        before: c.before || c.urlAntes || c.url_antes || '',
+        after: c.after || c.urlDespues || c.url_despues || '',
+        description: c.description || c.descripcion || 'Transformación integral realizada por Somos Reformas.' 
+      }));
 
       // Sincronizamos con el formato exacto en inglés que App.jsx distribuye a HomeView y DetailView
       const formattedProperty = {
         id: savedProperty.id,
-        title: savedProperty.titulo,
+        title: savedProperty.titulo || savedProperty.title,
         slug: savedProperty.slug,
-        price: savedProperty.precio,
-        location: savedProperty.localidad,
-        operation: savedProperty.operacion,
-        type: savedProperty.tipo,
-        rooms: savedProperty.ambientes,
-        beds: savedProperty.dormitorios,
-        baths: savedProperty.banos,
-        sizeTotal: savedProperty.m2Totales,
-        sizeCovered: savedProperty.m2Cubiertos,
-        sizeSemiCovered: savedProperty.m2Semicubiertos || 0,
-        sizeUncovered: savedProperty.m2Descubiertos || 0,
-        floor: savedProperty.pisoPlanta || 'PB',
-        bankEligible: savedProperty.aptoBanco ? 'Sí' : 'No',
-        direccion: savedProperty.direccion,
-        description: savedProperty.descripcion,
-        reformStory: savedProperty.historiaReforma,
+        price: savedProperty.precio || savedProperty.price,
+        location: savedProperty.localidad || savedProperty.location,
+        operation: savedProperty.operacion || savedProperty.operation,
+        type: savedProperty.tipo || savedProperty.type,
+        rooms: savedProperty.ambientes || savedProperty.rooms,
+        beds: savedProperty.dormitorios || savedProperty.beds,
+        baths: savedProperty.banos || savedProperty.baths,
+        sizeTotal: savedProperty.m2Totales || savedProperty.sizeTotal,
+        sizeCovered: savedProperty.m2Cubiertos || savedProperty.sizeCovered,
+        sizeSemiCovered: savedProperty.m2Semicubiertos || savedProperty.sizeSemiCovered || 0,
+        sizeUncovered: savedProperty.m2Descubiertos || savedProperty.sizeUncovered || 0,
+        floor: savedProperty.pisoPlanta || savedProperty.floor || 'PB',
+        bankEligible: savedProperty.aptoBanco === true || savedProperty.bankEligible === 'Sí' ? 'Sí' : 'No',
+        direccion: savedProperty.direccion || savedProperty.address,
+        description: savedProperty.descripcion || savedProperty.description,
+        reformStory: savedProperty.historiaReforma || savedProperty.reformStory,
         latitud: savedProperty.latitud,
         longitud: savedProperty.longitud,
         coverImage: primaryImg,
-        gallery: secondaryImgs.length > 0 ? secondaryImgs : [primaryImg],
-        comparables: (savedProperty.comparables || []).map(c => ({
-          spaceName: c.nombreEspacio, before: c.urlAntes, after: c.urlDespues, description: c.descripcion
-        })),
+        gallery: galleryFinal,
+        comparables: comparablesFinal,
         services: {
-          electricidad: savedProperty.servicioElectricidad,
-          gasNatural: savedProperty.servicioGasNatural,
-          cloaca: savedProperty.servicioCloaca
+          electricidad: savedProperty.servicioElectricidad ?? savedProperty.services?.electricidad ?? true,
+          gasNatural: savedProperty.servicioGasNatural ?? savedProperty.services?.gasNatural ?? true,
+          cloaca: savedProperty.servicioCoalca ?? savedProperty.services?.cloaca ?? true
         },
         estadoActual: savedProperty.estadoActual,
         antiguedad: savedProperty.antiguedad,
         orientacion: savedProperty.orientacion,
-        cochera: savedProperty.cochera,
+        cochera: savedProperty.cochera === true || savedProperty.cochera === 'Sí' ? 'Sí' : 'No',
         calefaccion: savedProperty.calefaccion,
         sistemaAgua: savedProperty.sistemaAgua
       };
@@ -339,7 +358,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       sizeUncovered: (prop.sizeUncovered ?? '0').toString(),
       floor: prop.floor || 'PB',
       estadoActual: prop.estadoActual || 'Excellent',
-      antiguedad: prop.antiguedad ? prop.antiguedad.toString() : '',
+      // antiguedad: prop.antiguedad ? prop.antiguedad.toString() : '',
+      // Buscá esta línea exacta adentro del setNewProp de handleStartEdit:
+      antiguedad: (prop.antiguedad !== null && prop.antiguedad !== undefined) ? prop.antiguedad.toString() : '',
       orientacion: prop.orientacion || 'Norte',
       cochera: prop.cochera === true || prop.cochera === 'Sí' ? 'Sí' : 'No',
       bankEligible: prop.bankEligible || 'Sí',
@@ -630,19 +651,40 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                 </div>
 
                 {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: SOLO PARA VENTAS */}
-                {newProp.operation === 'Venta' && (
+                {newProp.operation?.toLowerCase() === 'venta' && (
                   <div className="border-t border-slate-800 pt-2 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Estudio de Obra ({newProp.comparables.length})</span>
+                      <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Estudio de Obra ({newProp.comparables?.length || 0})</span>
                       <button type="button" onClick={addComparableSpace} className="px-2 py-0.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded text-[10px] uppercase">+</button>
                     </div>
-                    {newProp.comparables.map((comp, idx) => (
+                    {newProp.comparables?.map((comp, idx) => (
                       <div key={idx} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2 relative">
                         <button type="button" onClick={() => removeComparableSpace(idx)} className="absolute top-1 right-2 text-red-400 font-bold text-xs">✕</button>
+                        
                         <input type="text" required placeholder="Nombre del espacio (Ej: Living)" value={comp.spaceName || ''} onChange={(e) => handleComparableChange(idx, 'spaceName', e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[11px]" />
+                        
                         <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          <div><label className="text-slate-500 font-bold">Antes</label><input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compBefore', idx)} className="w-full" /></div>
-                          <div><label className="text-slate-500 font-bold">Después</label><input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full" /></div>
+                          {/* FOTO ANTES */}
+                          <div>
+                            <label className="text-slate-500 font-bold block mb-1">Antes de la Reforma</label>
+                            {comp.before && (
+                              <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
+                                <img src={comp.before} alt="Antes" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compBefore', idx)} className="w-full text-slate-400 text-[10px]" />
+                          </div>
+
+                          {/* FOTO DESPUÉS */}
+                          <div>
+                            <label className="text-slate-500 font-bold block mb-1">Después de la Reforma</label>
+                            {comp.after && (
+                              <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
+                                <img src={comp.after} alt="Después" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full text-slate-400 text-[10px]" />
+                          </div>
                         </div>
                       </div>
                     ))}

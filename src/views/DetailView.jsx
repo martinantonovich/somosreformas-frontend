@@ -238,10 +238,10 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
                 </div>
                 <div className="bg-neutral-50 p-2 sm:p-2.5 rounded-lg border border-neutral-100">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Condición</span>
-                  <span className={`font-black ${propiedad.antiguedad === 0 || !propiedad.antiguedad ? 'text-emerald-600' : 'text-slate-700'}`}>
-                    {propiedad.antiguedad === 0 || !propiedad.antiguedad
+                  <span className={`font-black ${selectedProperty.antiguedad === 0 || !selectedProperty.antiguedad ? 'text-emerald-600' : 'text-slate-700'}`}>
+                    {selectedProperty.antiguedad === 0 || !selectedProperty.antiguedad
                       ? 'A Estrenar'
-                      : `${propiedad.antiguedad} ${propiedad.antiguedad === 1 ? 'año' : 'años'}`}
+                      : `${selectedProperty.antiguedad} ${selectedProperty.antiguedad === 1 ? 'año' : 'años'}`}
                   </span>
                 </div>
               </div>
