@@ -102,7 +102,7 @@ export default function Footer({ setView, triggerToast }) {
               <div>
                 <label className="block text-[10px] font-bold uppercase text-white mb-1">Nombre</label>
                 <input 
-                  type="text" required placeholder="Ej. Sofía" value={footerContact.nombre}
+                  type="text" required placeholder="Ej. Galo" value={footerContact.nombre}
                   onChange={(e) => setFooterContact({...footerContact, nombre: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
                 />
@@ -121,7 +121,7 @@ export default function Footer({ setView, triggerToast }) {
               <div>
                 <label className="block text-[10px] font-bold uppercase text-white mb-1">Correo Electrónico</label>
                 <input 
-                  type="email" required placeholder="sofia@ejemplo.com" value={footerContact.email}
+                  type="email" required placeholder="galo@ejemplo.com" value={footerContact.email}
                   onChange={(e) => setFooterContact({...footerContact, email: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
                 />

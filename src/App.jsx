@@ -96,17 +96,24 @@ export default function App() {
 
         // Guardamos la lista completa mapeada en tu estado global
         setProperties(mappedProperties);
-
-        // 🎯 DEEP LINKING INTERCEPTOR: Evaluamos si el cliente viene desde el mail con un ID
+        // 🎯 DEEP LINKING INTERCEPTOR: Soporta ID tradicional y Slug amigable
         const urlParams = new URLSearchParams(window.location.search);
-        const propId = urlParams.get('propId');
+        const propSlug = urlParams.get('prop');   // 👈 Captura el nuevo parámetro de texto
+        const propId = urlParams.get('propId'); // Mantener soporte para los links viejos
         
-        if (propId) {
+        if (propSlug) {
+          // Búsqueda por Slug (texto amigable)
+          const propiedadEncontrada = mappedProperties.find(p => p.slug === propSlug.trim());
+          if (propiedadEncontrada) {
+            setSelectedProperty(propiedadEncontrada);
+            setView('detail');
+          }
+        } else if (propId) {
+          // Búsqueda por ID tradicional (Retrocompatibilidad por si quedó un link viejo en WhatsApp/Mail)
           const propiedadEncontrada = mappedProperties.find(p => p.id === parseInt(propId));
           if (propiedadEncontrada) {
-            // ⚠️ Ojo: Revisá si tus funciones/estados en App.jsx se llaman exactamente así:
-            setSelectedProperty(propiedadEncontrada); // El estado que almacena la propiedad para el Detalle
-            setView('detail'); // Setea la vista para renderizar la ficha
+            setSelectedProperty(propiedadEncontrada);
+            setView('detail');
           }
         }
       })
@@ -121,6 +128,11 @@ export default function App() {
   };
 
   const navigateToDetail = (property) => {
+    // 🚀 ALINEACIÓN CON LA URL: Cuando el usuario hace clic normal desde la home, 
+    // le inyectamos el slug a la barra de direcciones para que si tira F5 se quede ahí.
+    if (property?.slug) {
+      window.history.pushState({}, '', `${window.location.origin}/?prop=${property.slug}`);
+    }
     setSelectedProperty(property);
     setView('detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });

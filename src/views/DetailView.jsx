@@ -73,11 +73,9 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   };
 
   const handleCopyLink = () => {
-    // 🎯 CAMBIO CLAVE: Cambiamos la ruta '/propiedades/slug' (que te daría 404 en Vercel)
-    // por la raíz de la página usando '?propId='. window.location.origin se adapta automáticamente
-    // si estás probando en localhost o si ya estás en el dominio final.
-    const customUrl = `${window.location.origin}/?propId=${selectedProperty.id}`;
-
+    // const customUrl = `${window.location.origin}/?propId=${selectedProperty.id}`;
+    const customUrl = `${window.location.origin}/?prop=${selectedProperty.slug}`;
+    
     navigator.clipboard.writeText(customUrl)
       .then(() => triggerToast("¡Enlace listo para enviar copiado al portapapeles!", "success"))
       .catch(() => triggerToast("Error al copiar el enlace", "error"));
