@@ -25,15 +25,15 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const direccionDestino = selectedProperty.direccion || selectedProperty.address || '';
   const localidadDestino = selectedProperty.localidad || selectedProperty.location || 'La Plata';
 
-  // 🔌 Embed (iframe) corregido con la sintaxis exacta de interpolación
+  // 🔌 Embed (iframe) con la sintaxis oficial de Google Maps
   const mapsEmbedUrl = (latitud && longitud)
     ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16&output=embed`
     : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15&output=embed`;
 
-  // ✅ URL para abrir en nueva pestaña corregida
+  // ✅ URL para abrir en nueva pestaña (Botón Grande)
   const urlGrande = (latitud && longitud)
-    ? `https://maps.google.com/maps?q=${latitud},${longitud}&z=16`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15`;
+    ? `https://www.google.com/maps?q=${latitud},${longitud}&z=16`
+    : `https://www.google.com/maps?q=${encodeURIComponent(direccionDestino + ", " + localidadDestino)}&z=15`;
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
   const getWhatsAppMessage = (property) => {
