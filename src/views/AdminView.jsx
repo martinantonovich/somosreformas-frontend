@@ -713,6 +713,51 @@ export default function AdminView({ setProperties, properties, setView, triggerT
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
                 <h3 className="font-extrabold text-white text-xs uppercase tracking-wider mb-4 m-0">Inmuebles en Catálogo ({properties.length})</h3>
+                {/* 📱 VISTA EN TARJETAS PARA CELULARES (Se oculta automáticamente en PC) */}
+                <div className="block md:hidden space-y-3">
+                  {properties.map((p) => (
+                    <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-white text-sm truncate">{p.titulo || p.title}</h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operacion === 'Venta' ? 'text-orange-400' : 'text-blue-400'}`}>{p.operacion || p.operation}</span>
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-white bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg font-mono whitespace-nowrap flex-shrink-0">
+                          {p.operation === 'Venta' ? 'USD' : 'ARS'} {(p.price ?? 0).toLocaleString('es-AR')}
+                        </span>
+                      </div>
+                      
+                      {/* Botones de acción amplios para el dedo en el celular */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-center">
+                        <button
+                          type="button"
+                          onClick={() => { setView('home'); triggerToast("Redirigido.", "info"); }}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
+                        >
+                          Ver
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(p)}
+                          className="bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProperty(p.id)}
+                          className="bg-red-950/40 hover:bg-red-900/30 text-red-400 border border-red-900/40 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
+                        >
+                          Borrar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 💻 VISTA EN TABLA TRADICIONAL PARA PANTALLAS MEDIANAS Y GRANDES (Se oculta en celulares) */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
