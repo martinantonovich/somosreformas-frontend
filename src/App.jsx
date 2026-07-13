@@ -54,7 +54,12 @@ export default function App() {
             before: comp.urlAntes,
             after: comp.urlDespues,
             description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.',
-            video: comp.urlVideo || null
+            video: comp.urlVideo || null,
+            procesoMedia: (comp.procesoMedia || []).map(m => ({
+              url: m.urlMedia,
+              tipo: m.tipoMedia,
+              descripcion: m.descripcion || ''
+            }))
           })) || [];
 
           // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen

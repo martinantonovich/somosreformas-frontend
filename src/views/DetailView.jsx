@@ -4,7 +4,6 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
   const [compareSliderVal, setCompareSliderVal] = useState(50);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
-  const [showProcessVideo, setShowProcessVideo] = useState(false);
 
   if (!selectedProperty) return null;
     console.log("selectedProperty completo:", selectedProperty);
@@ -122,24 +121,42 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           </div>
         </div>
 
+        {/* 🏗️ CINTA DISTINTIVA: deja en claro que es una obra realizada, no algo en venta */}
+        {isReforma && (
+          <div className="bg-slate-950 text-white rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 shadow-sm">
+            <span className="text-base">🏗️</span>
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider m-0">
+              Obra Finalizada <span className="text-slate-400 font-semibold normal-case">— Esta propiedad no está disponible para venta ni alquiler. Mostramos el proceso de la reforma.</span>
+            </p>
+          </div>
+        )}
+
         {/* ENCABEZADO RESTRUCTURADO */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
           <div className="w-full md:w-auto">
             <div className="flex flex-wrap gap-1.5 mb-2">
-              <span className="bg-orange-100 text-orange-700 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.operation}</span>
+              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${isReforma ? 'bg-slate-800 text-slate-200' : 'bg-orange-100 text-orange-700'}`}>{selectedProperty.operation}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
               {!isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}
               {!isReforma && selectedProperty.bankEligible === "Sí" && (
                 <span className="bg-blue-100 text-blue-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">Apto Banco</span>
               )}
+              {isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">✓ Obra Finalizada</span>}
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
-          {!isReforma && (
+          {!isReforma ? (
             <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
               <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
               <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
                 USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
+              </span>
+            </div>
+          ) : (
+            <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
+              <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Estado</span>
+              <span className="text-sm sm:text-base font-black text-emerald-600">
+                Obra Finalizada ✓
               </span>
             </div>
           )}
@@ -181,7 +198,9 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           {/* Caja de Contacto */}
           <div className="bg-white border border-neutral-100 p-4 sm:p-6 rounded-2xl shadow-sm flex flex-col justify-between w-full">
             <div className="space-y-3">
-              <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">✦ Asesoramiento Inmediato</span>
+              <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">
+                {isReforma ? '✦ ¿Querés algo similar?' : '✦ Asesoramiento Inmediato'}
+              </span>
               <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
                 <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
                 <p className="bg-white p-2.5 rounded border border-neutral-200/50 leading-relaxed font-mono italic text-slate-500 line-clamp-3 sm:line-clamp-4 m-0">
@@ -321,7 +340,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               {selectedProperty.comparables.map((comp, idx) => (
                 <button
                   key={idx}
-                  onClick={() => { setActiveComparableIndex(idx); setCompareSliderVal(50); setShowProcessVideo(false); }}
+                  onClick={() => { setActiveComparableIndex(idx); setCompareSliderVal(50); }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                     activeComparableIndex === idx ? 'bg-orange-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
                   }`}
@@ -329,28 +348,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
                   {comp.spaceName}
                 </button>
               ))}
-              {selectedProperty.comparables[activeComparableIndex].video && (
-                <button
-                  onClick={() => setShowProcessVideo(prev => !prev)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ml-auto ${
-                    showProcessVideo ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-900 text-amber-400 hover:text-white'
-                  }`}
-                >
-                  ▶ {showProcessVideo ? 'Ocultar video' : 'Ver video del proceso'}
-                </button>
-              )}
             </div>
-
-            {showProcessVideo && selectedProperty.comparables[activeComparableIndex].video && (
-              <div className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-slate-800 shadow-2xl mb-4 bg-black">
-                <video
-                  key={selectedProperty.comparables[activeComparableIndex].video}
-                  src={selectedProperty.comparables[activeComparableIndex].video}
-                  controls
-                  className="w-full h-auto"
-                />
-              </div>
-            )}
 
             {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
             <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
@@ -410,6 +408,39 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             <p className="mt-4 bg-slate-900/50 p-3 rounded-lg text-xs text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
               📌 {selectedProperty.comparables[activeComparableIndex].description}
             </p>
+
+            {/* 🎬 PROCESO DE LA OBRA: fotos/videos del avance, siempre visibles (no un toggle escondido) */}
+            {(() => {
+              const activeComp = selectedProperty.comparables[activeComparableIndex];
+              const procesoItems = activeComp.procesoMedia?.length > 0
+                ? activeComp.procesoMedia
+                : (activeComp.video ? [{ url: activeComp.video, tipo: 'video', descripcion: '' }] : []);
+
+              if (procesoItems.length === 0) return null;
+
+              return (
+                <div className="mt-4 pt-4 border-t border-slate-900">
+                  <h4 className="font-extrabold text-xs uppercase tracking-wider text-white mb-1">🎬 Proceso de la Obra</h4>
+                  <p className="text-[11px] text-slate-400 mb-3">Así fue avanzando la reforma de este ambiente hasta llegar al resultado final.</p>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                    {procesoItems.map((item, itemIdx) => (
+                      <div key={itemIdx} className="flex-shrink-0 w-52 sm:w-60 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                        <div className="aspect-video w-full bg-black">
+                          {item.tipo === 'video' ? (
+                            <video src={item.url} controls className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={item.url} alt={item.descripcion || 'Proceso de la obra'} className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        {item.descripcion && (
+                          <p className="text-[10px] text-slate-300 p-2 leading-relaxed m-0">{item.descripcion}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="mt-4 pt-4 border-t border-slate-900 text-xs text-slate-400 font-light">
               <strong>Historia técnica:</strong> {selectedProperty.reformStory || selectedProperty.historia_reforma}

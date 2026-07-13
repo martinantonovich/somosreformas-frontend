@@ -65,24 +65,30 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     setIsUploading(true);
     const cloudName = "dldibpwyr";
     const uploadPreset = "somos_reformas_preset";
+    const isProcesoMedia = field === 'procesoMedia';
     const resourceType = field === 'compVideo' ? 'video' : 'image';
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
+        const fileResourceType = isProcesoMedia
+          ? (file.type.startsWith('video') ? 'video' : 'image')
+          : resourceType;
+
         const formData = new FormData();
         formData.append("file", file);
         formData.append("upload_preset", uploadPreset);
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${fileResourceType}/upload`, {
           method: "POST",
           body: formData
         });
         if (!response.ok) throw new Error("Error en la subida a Cloudinary");
         const data = await response.json();
-        return data.secure_url;
+        return isProcesoMedia ? { url: data.secure_url, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : data.secure_url;
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises);
+      const uploadedResults = await Promise.all(uploadPromises);
+      const uploadedUrls = uploadedResults;
 
       if (field === 'coverImage') {
         setNewProp(prev => ({ ...prev, coverImage: uploadedUrls[0] }));
@@ -106,13 +112,14 @@ export default function AdminView({ setProperties, properties, setView, triggerT
           updatedComps[index].after = uploadedUrls[0];
           return { ...prev, comparables: updatedComps };
         });
-      } else if (field === 'compVideo' && index !== null) {
+      } else if (field === 'procesoMedia' && index !== null) {
         setNewProp(prev => {
           const updatedComps = [...prev.comparables];
-          updatedComps[index].video = uploadedUrls[0];
+          const current = updatedComps[index].procesoMedia || [];
+          updatedComps[index] = { ...updatedComps[index], procesoMedia: [...current, ...uploadedResults] };
           return { ...prev, comparables: updatedComps };
         });
-        triggerToast("¡Video del proceso subido!", "success");
+        triggerToast(`¡${uploadedResults.length} archivo(s) de proceso añadidos!`, "success");
       }
     } catch (error) {
       console.error(error);
@@ -125,7 +132,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
   const addComparableSpace = () => {
     setNewProp(prev => ({
       ...prev,
-      comparables: [...prev.comparables, { spaceName: '', before: '', after: '', descripcion: '', video: '' }]
+      comparables: [...prev.comparables, { spaceName: '', before: '', after: '', descripcion: '', video: '', procesoMedia: [] }]
     }));
   };
 
@@ -137,6 +144,27 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     setNewProp(prev => {
       const updatedComps = [...prev.comparables];
       updatedComps[index][key] = value;
+      return { ...prev, comparables: updatedComps };
+    });
+  };
+
+  const removeProcesoMedia = (compIndex, mediaIndex) => {
+    setNewProp(prev => {
+      const updatedComps = [...prev.comparables];
+      updatedComps[compIndex] = {
+        ...updatedComps[compIndex],
+        procesoMedia: updatedComps[compIndex].procesoMedia.filter((_, i) => i !== mediaIndex)
+      };
+      return { ...prev, comparables: updatedComps };
+    });
+  };
+
+  const updateProcesoMediaCaption = (compIndex, mediaIndex, text) => {
+    setNewProp(prev => {
+      const updatedComps = [...prev.comparables];
+      const list = [...updatedComps[compIndex].procesoMedia];
+      list[mediaIndex] = { ...list[mediaIndex], descripcion: text };
+      updatedComps[compIndex] = { ...updatedComps[compIndex], procesoMedia: list };
       return { ...prev, comparables: updatedComps };
     });
   };
@@ -175,7 +203,11 @@ export default function AdminView({ setProperties, properties, setView, triggerT
           urlAntes: c.before.trim(),
           urlDespues: c.after.trim(),
           descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
-          urlVideo: c.video?.trim() || null
+          procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
+            urlMedia: m.url,
+            tipoMedia: m.tipo,
+            descripcion: m.descripcion?.trim() || null
+          }))
         }))
       : [];
 
@@ -251,7 +283,12 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         before: c.before || c.urlAntes || c.url_antes || '',
         after: c.after || c.urlDespues || c.url_despues || '',
         description: c.description || c.descripcion || 'Transformación integral realizada por Somos Reformas.',
-        video: c.video || c.urlVideo || c.url_video || null
+        video: c.video || c.urlVideo || c.url_video || null,
+        procesoMedia: (c.procesoMedia || []).map(m => ({
+          url: m.urlMedia || m.url_media,
+          tipo: m.tipoMedia || m.tipo_media || 'imagen',
+          descripcion: m.descripcion || ''
+        }))
       }));
 
       // Sincronizamos con el formato exacto en inglés que App.jsx distribuye a HomeView y DetailView
@@ -348,7 +385,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       before: c.before || '',
       after: c.after || '',
       descripcion: c.description || c.descripcion || '',
-      video: c.video || ''
+      video: c.video || '',
+      procesoMedia: c.procesoMedia || []
     }));
 
     setNewProp({
@@ -710,12 +748,38 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                           className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white text-[11px]"
                         />
 
-                        <div className="text-[10px]">
-                          <label className="text-slate-500 font-bold block mb-1">Video del proceso (opcional)</label>
-                          {comp.video && (
-                            <video src={comp.video} controls className="w-full rounded border border-slate-800 mb-1 bg-slate-900 max-h-32" />
+                        <div className="text-[10px] border-t border-slate-800/60 pt-2">
+                          <label className="text-slate-500 font-bold block mb-1">Fotos y videos del proceso de obra (opcional)</label>
+                          {comp.procesoMedia?.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 mb-1.5">
+                              {comp.procesoMedia.map((media, mediaIdx) => (
+                                <div key={mediaIdx} className="bg-slate-900 border border-slate-800 rounded-lg p-1.5 space-y-1 relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProcesoMedia(idx, mediaIdx)}
+                                    className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow hover:bg-red-700 transition z-10"
+                                  >
+                                    ✕
+                                  </button>
+                                  <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 bg-slate-950">
+                                    {media.tipo === 'video' ? (
+                                      <video src={media.url} controls className="w-full h-full object-cover" />
+                                    ) : (
+                                      <img src={media.url} alt="Proceso" className="w-full h-full object-cover" />
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej: Semana 2, demolición..."
+                                    value={media.descripcion || ''}
+                                    onChange={(e) => updateProcesoMediaCaption(idx, mediaIdx, e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-white text-[9px]"
+                                  />
+                                </div>
+                              ))}
+                            </div>
                           )}
-                          <input type="file" accept="video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compVideo', idx)} className="w-full text-slate-400 text-[10px]" />
+                          <input type="file" accept="image/*,video/*" multiple onChange={(e) => uploadImagesToCloudinary(e, 'procesoMedia', idx)} className="w-full text-slate-400 text-[10px]" />
                         </div>
                       </div>
                     ))}
