@@ -20,8 +20,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     title: '', 
     price: '',              // En USD si es venta, en ARS si es alquiler
     expensas: '0',          // Solo Alquiler
-    location: 'La Plata, Buenos Aires', 
-    operation: 'Venta',     // 'Venta' o 'Alquiler'
+    location: 'La Plata, Buenos Aires',
+    operation: 'Venta',     // 'Venta', 'Alquiler' o 'No Disponible'
+    estadoReforma: '',      // '', 'EN_PROCESO' o 'REALIZADA' (independiente de operation)
     type: 'Departamento',
     address: '', 
     latitud: '', 
@@ -197,18 +198,20 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       }
     });
 
-    const comparablesPayload = newProp.operation !== 'Alquiler'
-      ? newProp.comparables.filter(c => c.before?.trim() && c.after?.trim()).map(c => ({
-          nombreEspacio: c.spaceName || 'Espacio Común',
-          urlAntes: c.before.trim(),
-          urlDespues: c.after.trim(),
-          descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
-          procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
-            urlMedia: m.url,
-            tipoMedia: m.tipo,
-            descripcion: m.descripcion?.trim() || null
+    const comparablesPayload = newProp.estadoReforma
+      ? newProp.comparables
+          .filter(c => c.spaceName?.trim() && (c.before?.trim() || c.after?.trim() || c.procesoMedia?.length > 0))
+          .map(c => ({
+            nombreEspacio: c.spaceName || 'Espacio Común',
+            urlAntes: c.before?.trim() || null,
+            urlDespues: c.after?.trim() || null,
+            descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
+            procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
+              urlMedia: m.url,
+              tipoMedia: m.tipo,
+              descripcion: m.descripcion?.trim() || null
+            }))
           }))
-        }))
       : [];
 
     const propertyPayload = {
@@ -241,7 +244,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
       descripcion: newProp.description,
-      historiaReforma: newProp.operation !== 'Alquiler' ? newProp.reformStory : '',
+      historiaReforma: newProp.estadoReforma ? newProp.reformStory : '',
+      estadoReforma: newProp.estadoReforma || null,
       imagenes: imagenesPayload,
       comparables: comparablesPayload
     };
@@ -327,7 +331,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         orientacion: savedProperty.orientacion,
         cochera: savedProperty.cochera === true || savedProperty.cochera === 'Sí' ? 'Sí' : 'No',
         calefaccion: savedProperty.calefaccion,
-        sistemaAgua: savedProperty.sistemaAgua
+        sistemaAgua: savedProperty.sistemaAgua,
+        estadoReforma: savedProperty.estadoReforma || null
       };
 
       if (isEditing) {
@@ -395,6 +400,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       expensas: (prop.expensas ?? '0').toString(),
       location: prop.location || 'La Plata, Buenos Aires',
       operation: prop.operation || 'Venta', // Garantiza leer el formato de App.jsx
+      estadoReforma: prop.estadoReforma || '',
       type: prop.type || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
@@ -431,6 +437,14 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     });
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ✓ Atajo para pasar una reforma "En Proceso" a "Realizada": precarga el form de edición
+  // ya con el estado cambiado, para que el admin revise/complete la foto de "después" antes de guardar
+  const handleMarkAsRealizada = (p) => {
+    handleStartEdit(p);
+    setNewProp(prev => ({ ...prev, estadoReforma: 'REALIZADA' }));
+    triggerToast('Revisá la foto de "después" de cada ambiente y guardá para confirmar.', 'info');
   };
 
   const handleAdminLoginSubmit = (e) => {
@@ -505,9 +519,19 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Tipo de Operación</label>
                   <select value={newProp.operation} onChange={(e) => setNewProp({...newProp, operation: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
-                    <option value="Venta">Venta (Maneja USD y Comparador)</option>
+                    <option value="Venta">Venta (Maneja USD)</option>
                     <option value="Alquiler">Alquiler (Maneja ARS y Expensas)</option>
-                    <option value="Reforma">Reforma (Solo muestra, sin venta)</option>
+                    <option value="No Disponible">No Disponible (No se vende ni alquila)</option>
+                  </select>
+                </div>
+
+                {/* ¿Es una reforma? Independiente de la operación: una reforma Realizada puede además estar en Venta/Alquiler */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">¿Es una reforma?</label>
+                  <select value={newProp.estadoReforma || ''} onChange={(e) => setNewProp({...newProp, estadoReforma: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
+                    <option value="">No es una reforma</option>
+                    <option value="EN_PROCESO">En Proceso (mostrando avance de obra)</option>
+                    <option value="REALIZADA">Realizada (obra terminada)</option>
                   </select>
                 </div>
 
@@ -516,8 +540,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   <input type="text" required placeholder="Ej: PH Remodelado a Nuevo" value={newProp.title || ''} onChange={(e) => setNewProp({...newProp, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" />
                 </div>
 
-                {/* Bloque de Precios Dinámico: no aplica a Reformas (solo muestra, no se vende) */}
-                {newProp.operation !== 'Reforma' && (
+                {/* Bloque de Precios Dinámico: sólo aplica si está en Venta o Alquiler */}
+                {(newProp.operation === 'Venta' || newProp.operation === 'Alquiler') && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
@@ -703,8 +727,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   </div>
                 </div>
 
-                {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: VENTA Y REFORMA (no aplica a Alquiler) */}
-                {newProp.operation !== 'Alquiler' && (
+                {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: sólo si la propiedad es (o fue) una reforma */}
+                {!!newProp.estadoReforma && (
                   <div className="border-t border-slate-800 pt-2 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Estudio de Obra ({newProp.comparables?.length || 0})</span>
@@ -730,7 +754,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
 
                           {/* FOTO DESPUÉS */}
                           <div>
-                            <label className="text-slate-500 font-bold block mb-1">Después de la Reforma</label>
+                            <label className="text-slate-500 font-bold block mb-1">
+                              Después de la Reforma{newProp.estadoReforma === 'EN_PROCESO' && ' (opcional, se completa al finalizar)'}
+                            </label>
                             {comp.after && (
                               <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
                                 <img src={comp.after} alt="Después" className="w-full h-full object-cover" />
@@ -791,7 +817,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   <textarea rows="2" placeholder="Acabados, iluminación..." value={newProp.description || ''} onChange={(e) => setNewProp({...newProp, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none"></textarea>
                 </div>
 
-                {newProp.operation !== 'Alquiler' && (
+                {!!newProp.estadoReforma && (
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Historia técnica de la reforma</label>
                     <textarea rows="2" placeholder="Estructura de obra..." value={newProp.reformStory || ''} onChange={(e) => setNewProp({...newProp, reformStory: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none"></textarea>
@@ -815,24 +841,35 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
                           <h4 className="font-bold text-white text-sm truncate">{p.titulo || p.title}</h4>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operation === 'Venta' ? 'text-orange-400' : p.operation === 'Reforma' ? 'text-purple-400' : 'text-blue-400'}`}>{p.operation}</span>
+                          <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span>{p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operation === 'Venta' ? 'text-orange-400' : p.operation === 'No Disponible' ? 'text-slate-500' : 'text-blue-400'}`}>{p.operation}</span></span>
+                            {p.estadoReforma === 'EN_PROCESO' && <span className="bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">En Proceso</span>}
+                            {p.estadoReforma === 'REALIZADA' && <span className="bg-purple-950 text-purple-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">Realizada</span>}
                           </p>
                         </div>
                         <span className="text-xs font-bold text-white bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg font-mono whitespace-nowrap flex-shrink-0">
-                          {p.operation === 'Reforma' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
+                          {p.operation === 'No Disponible' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
                         </span>
                       </div>
 
                       {/* Botones de acción amplios para el dedo en el celular */}
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-center">
+                      <div className={`grid ${p.estadoReforma === 'EN_PROCESO' ? 'grid-cols-2' : 'grid-cols-3'} gap-2 pt-2 border-t border-slate-800/60 text-center`}>
                         <button
                           type="button"
-                          onClick={() => { setView(p.operation === 'Reforma' ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }}
+                          onClick={() => { setView(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }}
                           className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
                         >
                           Ver
                         </button>
+                        {p.estadoReforma === 'EN_PROCESO' && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkAsRealizada(p)}
+                            className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
+                          >
+                            ✓ Realizada
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleStartEdit(p)}
@@ -869,12 +906,21 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                         <tr key={p.id} className="border-b border-slate-900/50 hover:bg-slate-900/40 transition">
                           <td className="py-3 font-semibold text-white">{p.titulo || p.title}</td>
                           <td className="py-3 text-slate-400">{p.tipo || p.type}</td>
-                          <td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operation === 'Venta' ? 'bg-orange-950 text-orange-400' : p.operation === 'Reforma' ? 'bg-purple-950 text-purple-400' : 'bg-blue-950 text-blue-400'}`}>{p.operation}</span></td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operation === 'Venta' ? 'bg-orange-950 text-orange-400' : p.operation === 'No Disponible' ? 'bg-slate-800 text-slate-400' : 'bg-blue-950 text-blue-400'}`}>{p.operation}</span>
+                              {p.estadoReforma === 'EN_PROCESO' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950 text-amber-400">En Proceso</span>}
+                              {p.estadoReforma === 'REALIZADA' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-950 text-purple-400">Realizada</span>}
+                            </div>
+                          </td>
                           <td className="py-3 font-bold text-white font-mono">
-                            {p.operation === 'Reforma' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
+                            {p.operation === 'No Disponible' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
                           </td>
                           <td className="py-3 text-right space-x-3 whitespace-nowrap">
-                            <button onClick={() => { setView(p.operation === 'Reforma' ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
+                            <button onClick={() => { setView(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
+                            {p.estadoReforma === 'EN_PROCESO' && (
+                              <button onClick={() => handleMarkAsRealizada(p)} className="text-emerald-500 hover:text-emerald-400 font-bold transition">✓ Realizada</button>
+                            )}
                             <button onClick={() => handleStartEdit(p)} className="text-amber-500 hover:text-amber-400 font-bold transition">Editar</button>
                             <button onClick={() => handleDeleteProperty(p.id)} className="text-red-500 hover:text-red-400 font-bold transition">Borrar</button>
                           </td>

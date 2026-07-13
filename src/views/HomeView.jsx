@@ -139,6 +139,13 @@ export default function HomeView({ properties, navigateToDetail }) {
                   <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider bg-emerald-600 text-white">
                     {property.estadoActual || 'A Estrenar'}
                   </span>
+
+                  {/* 🏗️ Distintivo cuando esta unidad además es una reforma terminada por el estudio */}
+                  {property.estadoReforma === 'REALIZADA' && (
+                    <span className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider bg-slate-950/90 text-white">
+                      🏗️ Reformada
+                    </span>
+                  )}
                 </div>
 
                 {/* Contenido de la Tarjeta */}

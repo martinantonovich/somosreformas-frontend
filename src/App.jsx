@@ -98,7 +98,8 @@ export default function App() {
             orientacion: prop.orientacion,
             cochera: prop.cochera ? 'Sí' : 'No',
             calefaccion: prop.calefaccion,
-            sistemaAgua: prop.sistemaAgua
+            sistemaAgua: prop.sistemaAgua,
+            estadoReforma: prop.estadoReforma || null
           };
         });
 
@@ -130,9 +131,11 @@ export default function App() {
       });
   }, []); // Se ejecuta una sola vez al montar la aplicación
 
-  // 🏗️ Separamos el catálogo comercial (Venta/Alquiler) de las reformas históricas (solo muestra)
-  const saleRentProperties = properties.filter(p => p.operation !== 'Reforma');
-  const reformProperties = properties.filter(p => p.operation === 'Reforma');
+  // 🏗️ El catálogo comercial (Venta/Alquiler) y las reformas (En Proceso/Realizada) ya no son excluyentes:
+  // una reforma Realizada puede estar también en venta/alquiler si todavía no se vendió.
+  const saleRentProperties = properties.filter(p => p.operation === 'Venta' || p.operation === 'Alquiler');
+  const reformasEnProceso = properties.filter(p => p.estadoReforma === 'EN_PROCESO');
+  const reformasRealizadas = properties.filter(p => p.estadoReforma === 'REALIZADA');
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -164,7 +167,7 @@ export default function App() {
       )}
 
       {view === 'reformas' && (
-        <ReformasView properties={reformProperties} navigateToDetail={navigateToDetail} />
+        <ReformasView enProceso={reformasEnProceso} realizadas={reformasRealizadas} navigateToDetail={navigateToDetail} />
       )}
 
       {view === 'cotizador' && (

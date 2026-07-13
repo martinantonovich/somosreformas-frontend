@@ -10,8 +10,11 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
     console.log("latitud:", selectedProperty.latitud);
     console.log("longitud:", selectedProperty.longitud);
 
-  // 🏗️ Las reformas históricas se muestran, no se venden ni se alquilan
-  const isReforma = selectedProperty.operation === 'Reforma';
+  // 🏗️ estadoReforma es independiente de operation: una reforma puede además estar en venta/alquiler
+  const isEnProceso = selectedProperty.estadoReforma === 'EN_PROCESO';
+  const isRealizada = selectedProperty.estadoReforma === 'REALIZADA';
+  const isReforma = isEnProceso || isRealizada;
+  const isComercial = selectedProperty.operation === 'Venta' || selectedProperty.operation === 'Alquiler';
   // 🔋 Mapeo dinámico de servicios directo de la base de datos unificada
   const listaServicios = [];
   if (selectedProperty.services?.cocina) listaServicios.push("Cocina");
@@ -41,7 +44,14 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
-    if (property.operation === 'Reforma') {
+    const esComercial = property.operation === 'Venta' || property.operation === 'Alquiler';
+    if (esComercial) {
+      return `¡Hola Somos Reformas! Estoy interesado/a en la propiedad: "${property.title}" ubicada en ${property.location}. Me gustaría agendar una visita.`;
+    }
+    if (property.estadoReforma === 'EN_PROCESO') {
+      return `¡Hola Somos Reformas! Vi el avance de la obra "${property.title}" y quiero consultar sobre este proyecto / cotizar algo similar.`;
+    }
+    if (property.estadoReforma === 'REALIZADA') {
       return `¡Hola Somos Reformas! Vi la reforma "${property.title}" y quiero cotizar algo similar para mi propiedad.`;
     }
     return `¡Hola Somos Reformas! Estoy interesado/a en la propiedad: "${property.title}" ubicada en ${property.location}. Me gustaría agendar una visita.`;
@@ -121,12 +131,24 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           </div>
         </div>
 
-        {/* 🏗️ CINTA DISTINTIVA: deja en claro que es una obra realizada, no algo en venta */}
-        {isReforma && (
+        {/* 🏗️ CINTA DISTINTIVA: deja en claro si es una obra en curso o ya finalizada, y si está en venta */}
+        {isEnProceso && (
+          <div className="bg-amber-500 text-slate-950 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 shadow-sm">
+            <span className="text-base">🚧</span>
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider m-0">
+              Obra en Proceso <span className="font-semibold normal-case">— Estamos trabajando en esta propiedad ahora mismo. Mostramos el avance en tiempo real.</span>
+            </p>
+          </div>
+        )}
+        {isRealizada && (
           <div className="bg-slate-950 text-white rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 shadow-sm">
             <span className="text-base">🏗️</span>
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider m-0">
-              Obra Finalizada <span className="text-slate-400 font-semibold normal-case">— Esta propiedad no está disponible para venta ni alquiler. Mostramos el proceso de la reforma.</span>
+              Obra Finalizada <span className="text-slate-400 font-semibold normal-case">
+                {isComercial
+                  ? `— Esta reforma ya está lista y disponible para ${selectedProperty.operation === 'Venta' ? 'venta' : 'alquiler'}.`
+                  : '— Esta propiedad no está disponible para venta ni alquiler. Mostramos el proceso de la reforma.'}
+              </span>
             </p>
           </div>
         )}
@@ -137,29 +159,37 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             <div className="flex flex-wrap gap-1.5 mb-2">
               <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${isReforma ? 'bg-slate-800 text-slate-200' : 'bg-orange-100 text-orange-700'}`}>{selectedProperty.operation}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
-              {!isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}
-              {!isReforma && selectedProperty.bankEligible === "Sí" && (
+              {isComercial && !isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}
+              {isComercial && !isReforma && selectedProperty.bankEligible === "Sí" && (
                 <span className="bg-blue-100 text-blue-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">Apto Banco</span>
               )}
-              {isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">✓ Obra Finalizada</span>}
+              {isEnProceso && <span className="bg-amber-100 text-amber-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">🚧 En Proceso</span>}
+              {isRealizada && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">✓ Obra Finalizada</span>}
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
-          {!isReforma ? (
+          {isComercial ? (
             <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
               <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
               <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
                 USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
               </span>
             </div>
-          ) : (
+          ) : isEnProceso ? (
+            <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
+              <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Estado</span>
+              <span className="text-sm sm:text-base font-black text-amber-600">
+                Obra en Proceso 🚧
+              </span>
+            </div>
+          ) : isRealizada ? (
             <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
               <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Estado</span>
               <span className="text-sm sm:text-base font-black text-emerald-600">
                 Obra Finalizada ✓
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
@@ -199,7 +229,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           <div className="bg-white border border-neutral-100 p-4 sm:p-6 rounded-2xl shadow-sm flex flex-col justify-between w-full">
             <div className="space-y-3">
               <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">
-                {isReforma ? '✦ ¿Querés algo similar?' : '✦ Asesoramiento Inmediato'}
+                {isEnProceso ? '✦ Consultános sobre esta obra' : isReforma ? '✦ ¿Querés algo similar?' : '✦ Asesoramiento Inmediato'}
               </span>
               <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
                 <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
@@ -331,8 +361,14 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           <div className="bg-slate-950 text-white rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800 w-full mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-4 border-b border-slate-900">
               <div>
-                <h3 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">📐 El Proceso de Obra: Antes y Después</h3>
-                <p className="text-[11px] text-slate-400 mt-1">Deslizá el control central para visualizar el cambio estructural realizado por nuestro estudio.</p>
+                <h3 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">
+                  {isEnProceso ? '🚧 Avance de la Obra' : '📐 El Proceso de Obra: Antes y Después'}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {isEnProceso
+                    ? 'Así va progresando cada ambiente, en tiempo real.'
+                    : 'Deslizá el control central para visualizar el cambio estructural realizado por nuestro estudio.'}
+                </p>
               </div>
             </div>
 
@@ -350,60 +386,84 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               ))}
             </div>
 
-            {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
-            <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
-              <img 
-                src={selectedProperty.comparables[activeComparableIndex].after} 
-                alt="Después" 
-                className="w-full h-auto object-contain block"
-              />
-              <span className="absolute right-3 bottom-3 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">
-                Terminado a Estrenar
-              </span>
+            {(() => {
+              const activeComp = selectedProperty.comparables[activeComparableIndex];
+              const hasBeforeAfter = activeComp.before && activeComp.after;
 
-              <div 
-                className="absolute inset-y-0 left-0 overflow-hidden border-r border-white/40" 
-                style={{ width: `${compareSliderVal}%` }}
-              >
-                <img 
-                  src={selectedProperty.comparables[activeComparableIndex].before} 
-                  alt="Antes" 
-                  className="absolute top-0 left-0 h-full object-cover max-w-none" 
-                  style={{ 
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'left center'
-                  }} 
-                />
-                <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
-                  Antes de la Reforma
-                </span>
-              </div>
+              if (hasBeforeAfter) {
+                return (
+                  <>
+                    {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
+                    <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
+                      <img
+                        src={activeComp.after}
+                        alt="Después"
+                        className="w-full h-auto object-contain block"
+                      />
+                      <span className="absolute right-3 bottom-3 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">
+                        Terminado a Estrenar
+                      </span>
 
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={compareSliderVal} 
-                onChange={(e) => setCompareSliderVal(e.target.value)} 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30"
-              />
+                      <div
+                        className="absolute inset-y-0 left-0 overflow-hidden border-r border-white/40"
+                        style={{ width: `${compareSliderVal}%` }}
+                      >
+                        <img
+                          src={activeComp.before}
+                          alt="Antes"
+                          className="absolute top-0 left-0 h-full object-cover max-w-none"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            objectPosition: 'left center'
+                          }}
+                        />
+                        <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                          Antes de la Reforma
+                        </span>
+                      </div>
 
-              <div 
-                className="absolute inset-y-0 w-0.5 bg-white pointer-events-none z-20 flex items-center justify-center" 
-                style={{ left: `${compareSliderVal}%` }}
-              >
-                <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-2xl flex items-center justify-center text-xs text-white">
-                  ↔
-                </div>
-              </div>
-            </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={compareSliderVal}
+                        onChange={(e) => setCompareSliderVal(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30"
+                      />
 
-            <div className="mt-4 flex items-center space-x-3">
-              <span className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">Deslice para comparar</span>
-              <input type="range" min="0" max="100" value={compareSliderVal} onChange={(e) => setCompareSliderVal(e.target.value)} className="flex-grow h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 py-1" />
-            </div>
+                      <div
+                        className="absolute inset-y-0 w-0.5 bg-white pointer-events-none z-20 flex items-center justify-center"
+                        style={{ left: `${compareSliderVal}%` }}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-2xl flex items-center justify-center text-xs text-white">
+                          ↔
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center space-x-3">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">Deslice para comparar</span>
+                      <input type="range" min="0" max="100" value={compareSliderVal} onChange={(e) => setCompareSliderVal(e.target.value)} className="flex-grow h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 py-1" />
+                    </div>
+                  </>
+                );
+              }
+
+              if (activeComp.before) {
+                return (
+                  <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
+                    <img src={activeComp.before} alt="Estado antes de comenzar" className="w-full h-auto object-contain block" />
+                    <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                      Estado antes de comenzar
+                    </span>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
 
             <p className="mt-4 bg-slate-900/50 p-3 rounded-lg text-xs text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
               📌 {selectedProperty.comparables[activeComparableIndex].description}
