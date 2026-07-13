@@ -4,11 +4,15 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
   const [compareSliderVal, setCompareSliderVal] = useState(50);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  const [showProcessVideo, setShowProcessVideo] = useState(false);
 
   if (!selectedProperty) return null;
     console.log("selectedProperty completo:", selectedProperty);
     console.log("latitud:", selectedProperty.latitud);
     console.log("longitud:", selectedProperty.longitud);
+
+  // 🏗️ Las reformas históricas se muestran, no se venden ni se alquilan
+  const isReforma = selectedProperty.operation === 'Reforma';
   // 🔋 Mapeo dinámico de servicios directo de la base de datos unificada
   const listaServicios = [];
   if (selectedProperty.services?.cocina) listaServicios.push("Cocina");
@@ -38,6 +42,9 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
+    if (property.operation === 'Reforma') {
+      return `¡Hola Somos Reformas! Vi la reforma "${property.title}" y quiero cotizar algo similar para mi propiedad.`;
+    }
     return `¡Hola Somos Reformas! Estoy interesado/a en la propiedad: "${property.title}" ubicada en ${property.location}. Me gustaría agendar una visita.`;
   };
 
@@ -121,19 +128,21 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             <div className="flex flex-wrap gap-1.5 mb-2">
               <span className="bg-orange-100 text-orange-700 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.operation}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
-              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>
-              {selectedProperty.bankEligible === "Sí" && (
+              {!isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}
+              {!isReforma && selectedProperty.bankEligible === "Sí" && (
                 <span className="bg-blue-100 text-blue-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">Apto Banco</span>
               )}
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
-          <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
-            <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
-            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
-              USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
-            </span>
-          </div>
+          {!isReforma && (
+            <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
+              <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
+              <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
+                USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
@@ -312,7 +321,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
               {selectedProperty.comparables.map((comp, idx) => (
                 <button
                   key={idx}
-                  onClick={() => { setActiveComparableIndex(idx); setCompareSliderVal(50); }}
+                  onClick={() => { setActiveComparableIndex(idx); setCompareSliderVal(50); setShowProcessVideo(false); }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                     activeComparableIndex === idx ? 'bg-orange-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
                   }`}
@@ -320,7 +329,28 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
                   {comp.spaceName}
                 </button>
               ))}
+              {selectedProperty.comparables[activeComparableIndex].video && (
+                <button
+                  onClick={() => setShowProcessVideo(prev => !prev)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ml-auto ${
+                    showProcessVideo ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-900 text-amber-400 hover:text-white'
+                  }`}
+                >
+                  ▶ {showProcessVideo ? 'Ocultar video' : 'Ver video del proceso'}
+                </button>
+              )}
             </div>
+
+            {showProcessVideo && selectedProperty.comparables[activeComparableIndex].video && (
+              <div className="w-full max-w-2xl mx-auto rounded-xl overflow-hidden border border-slate-800 shadow-2xl mb-4 bg-black">
+                <video
+                  key={selectedProperty.comparables[activeComparableIndex].video}
+                  src={selectedProperty.comparables[activeComparableIndex].video}
+                  controls
+                  className="w-full h-auto"
+                />
+              </div>
+            )}
 
             {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
             <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
@@ -384,6 +414,22 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
             <div className="mt-4 pt-4 border-t border-slate-900 text-xs text-slate-400 font-light">
               <strong>Historia técnica:</strong> {selectedProperty.reformStory || selectedProperty.historia_reforma}
             </div>
+
+            {isReforma && (
+              <div className="mt-4 pt-4 border-t border-slate-900">
+              <div className="bg-orange-600/10 border border-orange-600/30 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-white font-semibold m-0 text-center sm:text-left">
+                  ¿Querés una reforma así en tu propiedad? Cotizala gratis.
+                </p>
+                <button
+                  onClick={() => { setView('cotizador'); setSelectedProperty(null); }}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition whitespace-nowrap"
+                >
+                  Cotizar mi reforma ➔
+                </button>
+              </div>
+              </div>
+            )}
           </div>
         )}
 

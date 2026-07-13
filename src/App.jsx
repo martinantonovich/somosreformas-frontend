@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 // Podés dejar esta importación por ahora, pero ya no la usaremos como estado inicial
-import { INITIAL_PROPERTIES } from './data/properties.js'; 
+import { INITIAL_PROPERTIES } from './data/properties.js';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import HomeView from './views/HomeView.jsx';
 import DetailView from './views/DetailView.jsx';
 import AdminView from './views/AdminView.jsx';
+import ReformasView from './views/ReformasView.jsx';
+import CotizadorView from './views/CotizadorView.jsx';
 
 export default function App() {
   const [view, setView] = useState('home'); 
@@ -48,10 +50,11 @@ export default function App() {
 
           // 3. Mapeamos los comparables
           const comparablesMapeados = prop.comparables?.map(comp => ({
-            spaceName: comp.nombreEspacio || 'Espacio Principal', 
+            spaceName: comp.nombreEspacio || 'Espacio Principal',
             before: comp.urlAntes,
             after: comp.urlDespues,
-            description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.' 
+            description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.',
+            video: comp.urlVideo || null
           })) || [];
 
           // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen
@@ -122,6 +125,10 @@ export default function App() {
       });
   }, []); // Se ejecuta una sola vez al montar la aplicación
 
+  // 🏗️ Separamos el catálogo comercial (Venta/Alquiler) de las reformas históricas (solo muestra)
+  const saleRentProperties = properties.filter(p => p.operation !== 'Reforma');
+  const reformProperties = properties.filter(p => p.operation === 'Reforma');
+
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4500);
@@ -148,9 +155,17 @@ export default function App() {
 
       {/* 🔀 Enrutador Dinámico de Vistas */}
       {view === 'home' && (
-        <HomeView properties={properties} navigateToDetail={navigateToDetail} />
+        <HomeView properties={saleRentProperties} navigateToDetail={navigateToDetail} />
       )}
-      
+
+      {view === 'reformas' && (
+        <ReformasView properties={reformProperties} navigateToDetail={navigateToDetail} />
+      )}
+
+      {view === 'cotizador' && (
+        <CotizadorView triggerToast={triggerToast} setView={setView} />
+      )}
+
       {view === 'detail' && (
         <DetailView 
           selectedProperty={selectedProperty} 

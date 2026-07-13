@@ -63,8 +63,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const cloudName = "dldibpwyr"; 
-    const uploadPreset = "somos_reformas_preset"; 
+    const cloudName = "dldibpwyr";
+    const uploadPreset = "somos_reformas_preset";
+    const resourceType = field === 'compVideo' ? 'video' : 'image';
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
@@ -72,7 +73,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
         formData.append("file", file);
         formData.append("upload_preset", uploadPreset);
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
           method: "POST",
           body: formData
         });
@@ -105,6 +106,13 @@ export default function AdminView({ setProperties, properties, setView, triggerT
           updatedComps[index].after = uploadedUrls[0];
           return { ...prev, comparables: updatedComps };
         });
+      } else if (field === 'compVideo' && index !== null) {
+        setNewProp(prev => {
+          const updatedComps = [...prev.comparables];
+          updatedComps[index].video = uploadedUrls[0];
+          return { ...prev, comparables: updatedComps };
+        });
+        triggerToast("¡Video del proceso subido!", "success");
       }
     } catch (error) {
       console.error(error);
@@ -117,7 +125,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
   const addComparableSpace = () => {
     setNewProp(prev => ({
       ...prev,
-      comparables: [...prev.comparables, { spaceName: '', before: '', after: '' }]
+      comparables: [...prev.comparables, { spaceName: '', before: '', after: '', descripcion: '', video: '' }]
     }));
   };
 
@@ -161,12 +169,13 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       }
     });
 
-    const comparablesPayload = newProp.operation === 'Venta' 
+    const comparablesPayload = newProp.operation !== 'Alquiler'
       ? newProp.comparables.filter(c => c.before?.trim() && c.after?.trim()).map(c => ({
           nombreEspacio: c.spaceName || 'Espacio Común',
           urlAntes: c.before.trim(),
           urlDespues: c.after.trim(),
-          descripcion: "Reforma premium por Somos Reformas."
+          descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
+          urlVideo: c.video?.trim() || null
         }))
       : [];
 
@@ -200,7 +209,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       calefaccion: newProp.calefaccion,
       sistemaAgua: newProp.sistemaAgua,
       descripcion: newProp.description,
-      historiaReforma: newProp.operation === 'Venta' ? newProp.reformStory : '',
+      historiaReforma: newProp.operation !== 'Alquiler' ? newProp.reformStory : '',
       imagenes: imagenesPayload,
       comparables: comparablesPayload
     };
@@ -238,10 +247,11 @@ export default function AdminView({ setProperties, properties, setView, triggerT
 
       // 📐 3. Mapeo seguro de comparables (Antes y Después) resolviendo las propiedades en inglés/español
       const comparablesFinal = (savedProperty.comparables || []).map(c => ({
-        spaceName: c.spaceName || c.nombreEspacio || c.nombre_espacio || 'Espacio Principal', 
+        spaceName: c.spaceName || c.nombreEspacio || c.nombre_espacio || 'Espacio Principal',
         before: c.before || c.urlAntes || c.url_antes || '',
         after: c.after || c.urlDespues || c.url_despues || '',
-        description: c.description || c.descripcion || 'Transformación integral realizada por Somos Reformas.' 
+        description: c.description || c.descripcion || 'Transformación integral realizada por Somos Reformas.',
+        video: c.video || c.urlVideo || c.url_video || null
       }));
 
       // Sincronizamos con el formato exacto en inglés que App.jsx distribuye a HomeView y DetailView
@@ -336,7 +346,9 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.spaceName || '',
       before: c.before || '',
-      after: c.after || ''
+      after: c.after || '',
+      descripcion: c.description || c.descripcion || '',
+      video: c.video || ''
     }));
 
     setNewProp({
@@ -457,6 +469,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   <select value={newProp.operation} onChange={(e) => setNewProp({...newProp, operation: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
                     <option value="Venta">Venta (Maneja USD y Comparador)</option>
                     <option value="Alquiler">Alquiler (Maneja ARS y Expensas)</option>
+                    <option value="Reforma">Reforma (Solo muestra, sin venta)</option>
                   </select>
                 </div>
 
@@ -465,31 +478,33 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   <input type="text" required placeholder="Ej: PH Remodelado a Nuevo" value={newProp.title || ''} onChange={(e) => setNewProp({...newProp, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" />
                 </div>
 
-                {/* Bloque de Precios Dinámico */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                      {newProp.operation === 'Venta' ? 'Valor (USD)' : 'Valor Mensual (ARS)'}
-                    </label>
-                    <input type="number" required placeholder="Valor" value={newProp.price || ''} onChange={(e) => setNewProp({...newProp, price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono font-bold" />
+                {/* Bloque de Precios Dinámico: no aplica a Reformas (solo muestra, no se vende) */}
+                {newProp.operation !== 'Reforma' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                        {newProp.operation === 'Venta' ? 'Valor (USD)' : 'Valor Mensual (ARS)'}
+                      </label>
+                      <input type="number" required placeholder="Valor" value={newProp.price || ''} onChange={(e) => setNewProp({...newProp, price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono font-bold" />
+                    </div>
+                    <div>
+                      {newProp.operation === 'Alquiler' ? (
+                        <>
+                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Expensas (ARS)</label>
+                          <input type="number" placeholder="0" value={newProp.expensas || ''} onChange={(e) => setNewProp({...newProp, expensas: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" />
+                        </>
+                      ) : (
+                        <>
+                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Apto Crédito</label>
+                          <select value={newProp.bankEligible} onChange={(e) => setNewProp({...newProp, bankEligible: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white">
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                          </select>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    {newProp.operation === 'Alquiler' ? (
-                      <>
-                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Expensas (ARS)</label>
-                        <input type="number" placeholder="0" value={newProp.expensas || ''} onChange={(e) => setNewProp({...newProp, expensas: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" />
-                      </>
-                    ) : (
-                      <>
-                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Apto Crédito</label>
-                        <select value={newProp.bankEligible} onChange={(e) => setNewProp({...newProp, bankEligible: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white">
-                          <option value="Sí">Sí</option>
-                          <option value="No">No</option>
-                        </select>
-                      </>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -650,8 +665,8 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   </div>
                 </div>
 
-                {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: SOLO PARA VENTAS */}
-                {newProp.operation?.toLowerCase() === 'venta' && (
+                {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: VENTA Y REFORMA (no aplica a Alquiler) */}
+                {newProp.operation !== 'Alquiler' && (
                   <div className="border-t border-slate-800 pt-2 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Estudio de Obra ({newProp.comparables?.length || 0})</span>
@@ -686,6 +701,22 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                             <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full text-slate-400 text-[10px]" />
                           </div>
                         </div>
+
+                        <textarea
+                          rows="2"
+                          placeholder="Descripción del cambio en este ambiente..."
+                          value={comp.descripcion || ''}
+                          onChange={(e) => handleComparableChange(idx, 'descripcion', e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white text-[11px]"
+                        />
+
+                        <div className="text-[10px]">
+                          <label className="text-slate-500 font-bold block mb-1">Video del proceso (opcional)</label>
+                          {comp.video && (
+                            <video src={comp.video} controls className="w-full rounded border border-slate-800 mb-1 bg-slate-900 max-h-32" />
+                          )}
+                          <input type="file" accept="video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compVideo', idx)} className="w-full text-slate-400 text-[10px]" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -696,7 +727,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                   <textarea rows="2" placeholder="Acabados, iluminación..." value={newProp.description || ''} onChange={(e) => setNewProp({...newProp, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none"></textarea>
                 </div>
 
-                {newProp.operation === 'Venta' && (
+                {newProp.operation !== 'Alquiler' && (
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Historia técnica de la reforma</label>
                     <textarea rows="2" placeholder="Estructura de obra..." value={newProp.reformStory || ''} onChange={(e) => setNewProp({...newProp, reformStory: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none"></textarea>
@@ -721,19 +752,19 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                         <div className="min-w-0">
                           <h4 className="font-bold text-white text-sm truncate">{p.titulo || p.title}</h4>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            {p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operacion === 'Venta' ? 'text-orange-400' : 'text-blue-400'}`}>{p.operacion || p.operation}</span>
+                            {p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operation === 'Venta' ? 'text-orange-400' : p.operation === 'Reforma' ? 'text-purple-400' : 'text-blue-400'}`}>{p.operation}</span>
                           </p>
                         </div>
                         <span className="text-xs font-bold text-white bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg font-mono whitespace-nowrap flex-shrink-0">
-                          {p.operation === 'Venta' ? 'USD' : 'ARS'} {(p.price ?? 0).toLocaleString('es-AR')}
+                          {p.operation === 'Reforma' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
                         </span>
                       </div>
-                      
+
                       {/* Botones de acción amplios para el dedo en el celular */}
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-center">
                         <button
                           type="button"
-                          onClick={() => { setView('home'); triggerToast("Redirigido.", "info"); }}
+                          onClick={() => { setView(p.operation === 'Reforma' ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }}
                           className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
                         >
                           Ver
@@ -774,12 +805,12 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                         <tr key={p.id} className="border-b border-slate-900/50 hover:bg-slate-900/40 transition">
                           <td className="py-3 font-semibold text-white">{p.titulo || p.title}</td>
                           <td className="py-3 text-slate-400">{p.tipo || p.type}</td>
-                          <td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operacion === 'Venta' ? 'bg-orange-950 text-orange-400' : 'bg-blue-950 text-blue-400'}`}>{p.operacion || p.operation}</span></td>
+                          <td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operation === 'Venta' ? 'bg-orange-950 text-orange-400' : p.operation === 'Reforma' ? 'bg-purple-950 text-purple-400' : 'bg-blue-950 text-blue-400'}`}>{p.operation}</span></td>
                           <td className="py-3 font-bold text-white font-mono">
-                            {p.operation === 'Venta' ? 'USD' : 'ARS'} {(p.price ?? 0).toLocaleString('es-AR')}
+                            {p.operation === 'Reforma' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
                           </td>
                           <td className="py-3 text-right space-x-3 whitespace-nowrap">
-                            <button onClick={() => { setView('home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
+                            <button onClick={() => { setView(p.operation === 'Reforma' ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
                             <button onClick={() => handleStartEdit(p)} className="text-amber-500 hover:text-amber-400 font-bold transition">Editar</button>
                             <button onClick={() => handleDeleteProperty(p.id)} className="text-red-500 hover:text-red-400 font-bold transition">Borrar</button>
                           </td>
