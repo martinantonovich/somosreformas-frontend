@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function AdminView({ setProperties, properties, setView, triggerToast }) {
+export default function AdminView({ setProperties, properties, navigateTo, triggerToast }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -353,7 +353,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       
       setIsEditing(false);
       setEditingId(null);
-      setView('home'); 
+      navigateTo('home');
     })
     .catch((err) => {
       console.error(err);
@@ -499,7 +499,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest block mb-1">Estudio & Gestión</span>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white m-0">Administración de Catálogo</h1>
           </div>
-          <button onClick={() => setView('home')} className="w-full sm:w-auto text-center px-4 py-2.5 bg-slate-900 text-slate-300 rounded-lg text-xs font-bold transition">
+          <button onClick={() => navigateTo('home')} className="w-full sm:w-auto text-center px-4 py-2.5 bg-slate-900 text-slate-300 rounded-lg text-xs font-bold transition">
             Cerrar Panel
           </button>
         </div>
@@ -866,7 +866,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                       <div className={`grid ${p.estadoReforma === 'EN_PROCESO' ? 'grid-cols-2' : 'grid-cols-3'} gap-2 pt-2 border-t border-slate-800/60 text-center`}>
                         <button
                           type="button"
-                          onClick={() => { setView(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }}
+                          onClick={() => { navigateTo(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }}
                           className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider"
                         >
                           Ver
@@ -927,7 +927,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
                             {p.operation === 'No Disponible' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
                           </td>
                           <td className="py-3 text-right space-x-3 whitespace-nowrap">
-                            <button onClick={() => { setView(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
+                            <button onClick={() => { navigateTo(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>
                             {p.estadoReforma === 'EN_PROCESO' && (
                               <button onClick={() => handleMarkAsRealizada(p)} className="text-emerald-500 hover:text-emerald-400 font-bold transition">✓ Realizada</button>
                             )}

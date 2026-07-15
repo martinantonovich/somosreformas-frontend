@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Header({ setView, setSelectedProperty, view }) {
+export default function Header({ navigateTo, view }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
@@ -10,8 +10,7 @@ export default function Header({ setView, setSelectedProperty, view }) {
       fullLabel: 'Propiedades Disponibles',
       active: view === 'home',
       onClick: () => {
-        setView('home');
-        setSelectedProperty(null);
+        navigateTo('home');
         setTimeout(() => {
           const element = document.getElementById('seccion-filtros');
           if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -23,14 +22,14 @@ export default function Header({ setView, setSelectedProperty, view }) {
       shortLabel: 'Reformas',
       fullLabel: 'Reformas Realizadas',
       active: view === 'reformas',
-      onClick: () => { setView('reformas'); setSelectedProperty(null); },
+      onClick: () => navigateTo('reformas'),
     },
     {
       key: 'cotizador',
       shortLabel: 'Cotizar',
       fullLabel: 'Cotizá tu Reforma',
       active: view === 'cotizador',
-      onClick: () => { setView('cotizador'); setSelectedProperty(null); },
+      onClick: () => navigateTo('cotizador'),
     },
     {
       key: 'contacto',
@@ -56,11 +55,13 @@ export default function Header({ setView, setSelectedProperty, view }) {
         {/* LOGO */}
         <div
           className="flex items-center space-x-2 cursor-pointer group select-none shrink-0"
-          onClick={() => { setView('home'); setSelectedProperty(null); setMenuOpen(false); }}
+          onClick={() => { navigateTo('home'); setMenuOpen(false); }}
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-950 text-white rounded flex items-center justify-center shadow-md group-hover:bg-orange-600 transition-colors duration-300 flex-shrink-0">
-            <span className="font-black text-[10px] sm:text-xs">SR</span>
-          </div>
+          <img
+            src="/logo.JPG"
+            alt="Somos Reformas"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shadow-md group-hover:scale-105 transition-transform duration-300 shrink-0"
+          />
 
           <div className="flex flex-col min-w-0">
             <span className="text-[11px] sm:text-sm font-light tracking-[0.12em] sm:tracking-[0.18em] text-slate-900 block uppercase leading-none">

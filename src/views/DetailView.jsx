@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function DetailView({ selectedProperty, setView, setSelectedProperty, triggerToast }) {
+export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
   const [compareSliderVal, setCompareSliderVal] = useState(50);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
@@ -106,7 +106,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
         {/* BOTÓN VOLVER Y LOGO RESPONSIVO */}
         <div className="flex justify-between items-center mb-4 gap-2">
           <button 
-            onClick={() => { setView('home'); setSelectedProperty(null); }}
+            onClick={() => navigateTo('home')}
             className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-orange-600 transition p-1"
           >
             <span>❮ Volver al listado</span>
@@ -115,11 +115,13 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
           {/* 🏛️ LOGO OPTIMIZADO PARA PREVENIR EL DESBORDE (OVERFLOW) */}
           <div 
             className="flex items-center space-x-2.5 cursor-pointer group select-none max-w-[60%] sm:max-w-full" 
-            onClick={() => { setView('home'); setSelectedProperty(null); }}
+            onClick={() => navigateTo('home')}
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-950 text-white rounded flex items-center justify-center shadow-md group-hover:bg-orange-600 transition-colors duration-300 flex-shrink-0">
-              <span className="font-black text-[10px] sm:text-xs">SR</span>
-            </div>
+            <img
+              src="/logo.JPG"
+              alt="Somos Reformas"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shadow-md group-hover:scale-105 transition-transform duration-300 shrink-0"
+            />
             <div className="flex flex-col min-w-0">
               <span className="text-xs sm:text-sm font-light tracking-[0.18em] text-slate-900 block uppercase leading-none truncate">
                 somos<span className="font-extrabold text-orange-600">reformas</span>
@@ -513,7 +515,7 @@ export default function DetailView({ selectedProperty, setView, setSelectedPrope
                   ¿Querés una reforma así en tu propiedad? Cotizala gratis.
                 </p>
                 <button
-                  onClick={() => { setView('cotizador'); setSelectedProperty(null); }}
+                  onClick={() => navigateTo('cotizador')}
                   className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition whitespace-nowrap"
                 >
                   Cotizar mi reforma ➔

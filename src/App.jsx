@@ -18,6 +18,55 @@ export default function App() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
+  // 🧭 Mapeo único entre pantallas y URLs, usado tanto para navegar como para leer la URL
+  const pathByView = { home: '/', reformas: '/reformas', cotizador: '/cotizador', admin: '/admin' };
+
+  // 🌐 Toda navegación pasa por acá: cambia la pantalla Y la URL a la vez (soporta atrás/adelante del navegador)
+  const navigateTo = (viewName, property = null) => {
+    const url = viewName === 'detail' && property?.slug
+      ? `${window.location.origin}/?prop=${property.slug}`
+      : `${window.location.origin}${pathByView[viewName] || '/'}`;
+    window.history.pushState({}, '', url);
+    setSelectedProperty(property);
+    setView(viewName);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 🔙 Soporte para los botones Atrás/Adelante del navegador: re-derivamos la pantalla desde la URL actual
+  useEffect(() => {
+    const handlePopState = () => {
+      const { pathname, search } = window.location;
+      const params = new URLSearchParams(search);
+      const propSlug = params.get('prop');
+      const propId = params.get('propId');
+
+      if (propSlug || propId) {
+        const propiedadEncontrada = propSlug
+          ? properties.find(p => p.slug === propSlug.trim())
+          : properties.find(p => p.id === parseInt(propId));
+        if (propiedadEncontrada) {
+          setSelectedProperty(propiedadEncontrada);
+          setView('detail');
+          return;
+        }
+      }
+
+      const viewFromPath = Object.keys(pathByView).find(key => pathByView[key] === pathname) || 'home';
+      setSelectedProperty(null);
+      setView(viewFromPath);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [properties]);
+
+  // 🌱 Al cargar la página por primera vez, si la URL ya apunta a /reformas, /cotizador o /admin,
+  // arrancamos directo ahí (el caso de /?prop= se resuelve más abajo una vez que llegan las propiedades)
+  useEffect(() => {
+    const viewFromPath = Object.keys(pathByView).find(key => pathByView[key] === window.location.pathname);
+    if (viewFromPath && viewFromPath !== 'home') setView(viewFromPath);
+  }, []);
+
   // 🔌 CONEXIÓN AL BACKEND: Traemos las propiedades reales al cargar la app
   useEffect(() => {
     fetch(`${apiUrl}/api/propiedades`)
@@ -168,16 +217,7 @@ export default function App() {
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4500);
   };
 
-  const navigateToDetail = (property) => {
-    // 🚀 ALINEACIÓN CON LA URL: Cuando el usuario hace clic normal desde la home, 
-    // le inyectamos el slug a la barra de direcciones para que si tira F5 se quede ahí.
-    if (property?.slug) {
-      window.history.pushState({}, '', `${window.location.origin}/?prop=${property.slug}`);
-    }
-    setSelectedProperty(property);
-    setView('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const navigateToDetail = (property) => navigateTo('detail', property);
 
   return (
     <div className="min-h-screen bg-neutral-50 text-slate-800 font-sans flex flex-col">
@@ -185,7 +225,7 @@ export default function App() {
 
 
       {/* 🏛️ Header estático */}
-      <Header setView={setView} setSelectedProperty={setSelectedProperty} view={view} />
+      <Header navigateTo={navigateTo} view={view} />
 
       {/* 🔀 Enrutador Dinámico de Vistas */}
       {view === 'home' && (
@@ -197,29 +237,28 @@ export default function App() {
       )}
 
       {view === 'cotizador' && (
-        <CotizadorView triggerToast={triggerToast} setView={setView} />
+        <CotizadorView triggerToast={triggerToast} navigateTo={navigateTo} />
       )}
 
       {view === 'detail' && (
-        <DetailView 
-          selectedProperty={selectedProperty} 
-          setView={setView} 
-          setSelectedProperty={setSelectedProperty} 
-          triggerToast={triggerToast} 
+        <DetailView
+          selectedProperty={selectedProperty}
+          navigateTo={navigateTo}
+          triggerToast={triggerToast}
         />
       )}
-      
+
       {view === 'admin' && (
-        <AdminView 
-          setProperties={setProperties} 
-          properties={properties} 
-          setView={setView} 
-          triggerToast={triggerToast} 
+        <AdminView
+          setProperties={setProperties}
+          properties={properties}
+          navigateTo={navigateTo}
+          triggerToast={triggerToast}
         />
       )}
 
       {/* ✉️ Footer con Formulario */}
-      <Footer setView={setView} triggerToast={triggerToast} />
+      <Footer navigateTo={navigateTo} triggerToast={triggerToast} />
 
       {/* Toast Notificación flotante (Si lo tenés maquetado al final) */}
       {toast.show && (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Footer({ setView, triggerToast }) {
+export default function Footer({ navigateTo, triggerToast }) {
   const [footerContact, setFooterContact] = useState({
     nombre: '',
     apellido: '',
@@ -81,7 +81,7 @@ export default function Footer({ setView, triggerToast }) {
           </div>
           <p className="text-[10px] text-slate-700">
             <span 
-              onClick={() => { setView('admin'); triggerToast("Accediendo al panel administrativo.", "info"); }}
+              onClick={() => { navigateTo('admin'); triggerToast("Accediendo al panel administrativo.", "info"); }}
               className="cursor-pointer hover:text-orange-500 font-bold"
               title="Acceso secreto"
             >

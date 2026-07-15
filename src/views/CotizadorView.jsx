@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function CotizadorView({ triggerToast, setView }) {
+export default function CotizadorView({ triggerToast, navigateTo }) {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   const [form, setForm] = useState({
@@ -181,8 +181,8 @@ export default function CotizadorView({ triggerToast, setView }) {
           <div className="bg-white border border-neutral-100 rounded-2xl p-6 shadow-sm">
             <span className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest block mb-1">Prueba Social</span>
             <p className="text-xs text-slate-600 leading-relaxed mb-3">Mirá el antes y después de las obras que ya completamos antes de cotizar la tuya.</p>
-            {setView && (
-              <button onClick={() => setView('reformas')} className="w-full bg-slate-950 hover:bg-orange-600 text-white text-[11px] font-bold py-2.5 rounded-xl transition">
+            {navigateTo && (
+              <button onClick={() => navigateTo('reformas')} className="w-full bg-slate-950 hover:bg-orange-600 text-white text-[11px] font-bold py-2.5 rounded-xl transition">
                 Ver reformas realizadas ➔
               </button>
             )}
