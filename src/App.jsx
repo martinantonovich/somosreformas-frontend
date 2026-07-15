@@ -137,6 +137,32 @@ export default function App() {
   const reformasEnProceso = properties.filter(p => p.estadoReforma === 'EN_PROCESO');
   const reformasRealizadas = properties.filter(p => p.estadoReforma === 'REALIZADA');
 
+  // 📊 GA4 no detecta solo los cambios de sección porque esta SPA no cambia la URL al navegar
+  // entre pestañas (salvo al entrar al detalle de una propiedad). Mandamos el pageview a mano.
+  useEffect(() => {
+    if (typeof window.gtag !== 'function') return;
+
+    const pathByView = {
+      home: '/',
+      reformas: '/reformas',
+      cotizador: '/cotizador',
+      detail: selectedProperty?.slug ? `/?prop=${selectedProperty.slug}` : '/detalle',
+      admin: '/admin'
+    };
+    const titleByView = {
+      home: 'Propiedades Disponibles',
+      reformas: 'Reformas',
+      cotizador: 'Cotizá tu Reforma',
+      detail: selectedProperty?.title ? `Detalle: ${selectedProperty.title}` : 'Detalle de propiedad',
+      admin: 'Admin'
+    };
+
+    window.gtag('event', 'page_view', {
+      page_path: pathByView[view] || `/${view}`,
+      page_title: titleByView[view] || view
+    });
+  }, [view, selectedProperty]);
+
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4500);

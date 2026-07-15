@@ -70,7 +70,13 @@ export default function AdminView({ setProperties, properties, setView, triggerT
     const resourceType = field === 'compVideo' ? 'video' : 'image';
 
     try {
+      const archivosVacios = Array.from(files).filter(f => f.size === 0).map(f => f.name);
+      if (archivosVacios.length > 0) {
+        throw new Error(`El archivo "${archivosVacios[0]}" llegó vacío (0 bytes) al navegador. Probá guardarlo de nuevo (ej. re-exportar o re-descargar la imagen) y volvé a subirlo.`);
+      }
+
       const uploadPromises = Array.from(files).map(async (file) => {
+        console.log(`📤 Subiendo "${file.name}" (${(file.size / 1024).toFixed(0)} KB, ${file.type})`);
         const fileResourceType = isProcesoMedia
           ? (file.type.startsWith('video') ? 'video' : 'image')
           : resourceType;
@@ -83,7 +89,11 @@ export default function AdminView({ setProperties, properties, setView, triggerT
           method: "POST",
           body: formData
         });
-        if (!response.ok) throw new Error("Error en la subida a Cloudinary");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          console.error(`❌ Cloudinary rechazó "${file.name}":`, errorData);
+          throw new Error(errorData?.error?.message ? `"${file.name}": ${errorData.error.message}` : "Error en la subida a Cloudinary");
+        }
         const data = await response.json();
         return isProcesoMedia ? { url: data.secure_url, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : data.secure_url;
       });
@@ -124,7 +134,7 @@ export default function AdminView({ setProperties, properties, setView, triggerT
       }
     } catch (error) {
       console.error(error);
-      triggerToast("Error multimedia.", "error");
+      triggerToast(error.message || "Error multimedia.", "error");
     } finally {
       setIsUploading(false);
     }

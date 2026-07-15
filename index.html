@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Somos Reformas</title>
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-M1MHQJHTJ5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      // send_page_view en false: la SPA no cambia de URL al navegar entre secciones,
+      // así que App.jsx manda cada pageview a mano (evita duplicar la vista inicial).
+      gtag('config', 'G-M1MHQJHTJ5', { send_page_view: false });
+    </script>
   </head>
   <body>
     <div id="root"></div>
