@@ -173,7 +173,7 @@ export default function CotizadorView({ triggerToast, navigateTo }) {
             <div className="text-xs space-y-1.5 text-slate-400 font-medium pt-3 border-t border-slate-900">
               <p>📍 La Plata, Buenos Aires</p>
               <p>📍 La Costa, Buenos Aires</p>
-              <p>✉ somosreformas@gmail.com</p>
+              <p>✉ reformassomos@gmail.com</p>
               <p>📞 +54 9 221 6397424</p>
             </div>
           </div>

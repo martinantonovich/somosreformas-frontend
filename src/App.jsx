@@ -3,11 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { INITIAL_PROPERTIES } from './data/properties.js';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
+import CookieBanner from './components/CookieBanner.jsx';
 import HomeView from './views/HomeView.jsx';
 import DetailView from './views/DetailView.jsx';
 import AdminView from './views/AdminView.jsx';
 import ReformasView from './views/ReformasView.jsx';
 import CotizadorView from './views/CotizadorView.jsx';
+import PoliticaPrivacidadView from './views/PoliticaPrivacidadView.jsx';
 
 export default function App() {
   const [view, setView] = useState('home'); 
@@ -19,7 +21,7 @@ export default function App() {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   // 🧭 Mapeo único entre pantallas y URLs, usado tanto para navegar como para leer la URL
-  const pathByView = { home: '/', reformas: '/reformas', cotizador: '/cotizador', admin: '/admin' };
+  const pathByView = { home: '/', reformas: '/reformas', cotizador: '/cotizador', admin: '/admin', politica: '/politica-de-privacidad' };
 
   // 🌐 Toda navegación pasa por acá: cambia la pantalla Y la URL a la vez (soporta atrás/adelante del navegador)
   const navigateTo = (viewName, property = null) => {
@@ -191,23 +193,25 @@ export default function App() {
   useEffect(() => {
     if (typeof window.gtag !== 'function') return;
 
-    const pathByView = {
+    const gaPathByView = {
       home: '/',
       reformas: '/reformas',
       cotizador: '/cotizador',
       detail: selectedProperty?.slug ? `/?prop=${selectedProperty.slug}` : '/detalle',
-      admin: '/admin'
+      admin: '/admin',
+      politica: '/politica-de-privacidad'
     };
     const titleByView = {
       home: 'Propiedades Disponibles',
       reformas: 'Reformas',
       cotizador: 'Cotizá tu Reforma',
       detail: selectedProperty?.title ? `Detalle: ${selectedProperty.title}` : 'Detalle de propiedad',
-      admin: 'Admin'
+      admin: 'Admin',
+      politica: 'Política de Privacidad'
     };
 
     window.gtag('event', 'page_view', {
-      page_path: pathByView[view] || `/${view}`,
+      page_path: gaPathByView[view] || `/${view}`,
       page_title: titleByView[view] || view
     });
   }, [view, selectedProperty]);
@@ -257,8 +261,15 @@ export default function App() {
         />
       )}
 
+      {view === 'politica' && (
+        <PoliticaPrivacidadView navigateTo={navigateTo} />
+      )}
+
       {/* ✉️ Footer con Formulario */}
       <Footer navigateTo={navigateTo} triggerToast={triggerToast} />
+
+      {/* 🍪 Aviso de cookies (se muestra una sola vez, sobre cualquier pantalla) */}
+      <CookieBanner navigateTo={navigateTo} />
 
       {/* Toast Notificación flotante (Si lo tenés maquetado al final) */}
       {toast.show && (

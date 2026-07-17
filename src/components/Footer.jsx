@@ -76,17 +76,21 @@ export default function Footer({ navigateTo, triggerToast }) {
             <p>📍 La Plata, Buenos Aires</p>
             <p>📍 La Costa, Buenos Aires</p>
             
-            <p>✉ somosreformas@gmail.com</p>
+            <p>✉ reformassomos@gmail.com</p>
             <p>📞 +54 9 221 6397424</p>
           </div>
           <p className="text-[10px] text-slate-700">
-            <span 
+            <span
               onClick={() => { navigateTo('admin'); triggerToast("Accediendo al panel administrativo.", "info"); }}
               className="cursor-pointer hover:text-orange-500 font-bold"
               title="Acceso secreto"
             >
               ©
             </span> 2026 Teddyware. Todos los derechos reservados.
+            {' · '}
+            <span onClick={() => navigateTo('politica')} className="cursor-pointer hover:text-orange-500 underline">
+              Política de Privacidad
+            </span>
           </p>
         </div>
 
