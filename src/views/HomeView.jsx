@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 
 export default function HomeView({ properties, navigateToDetail }) {
   const [filterLocation, setFilterLocation] = useState('');
@@ -146,6 +147,18 @@ export default function HomeView({ properties, navigateToDetail }) {
                       🏗️ Reformada
                     </span>
                   )}
+
+                  {/* 🏷️ Cartel comercial: Reservado / En Negociación / Vendido / Alquilado */}
+                  {(() => {
+                    const estadoBadge = getEstadoPropiedadBadge(property.estadoPropiedad);
+                    return estadoBadge && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50">
+                        <span className={`text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-lg shadow-lg -rotate-6 ${estadoBadge.className}`}>
+                          {estadoBadge.label}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Contenido de la Tarjeta */}

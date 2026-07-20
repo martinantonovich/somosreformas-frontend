@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 
 export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
@@ -15,6 +16,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const isRealizada = selectedProperty.estadoReforma === 'REALIZADA';
   const isReforma = isEnProceso || isRealizada;
   const isComercial = selectedProperty.operation === 'Venta' || selectedProperty.operation === 'Alquiler';
+  const estadoPropiedadBadge = getEstadoPropiedadBadge(selectedProperty.estadoPropiedad);
   // 🔋 Mapeo dinámico de servicios directo de la base de datos unificada
   const listaServicios = [];
   if (selectedProperty.services?.cocina) listaServicios.push("Cocina");
@@ -159,6 +161,9 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
           <div className="w-full md:w-auto">
             <div className="flex flex-wrap gap-1.5 mb-2">
+              {estadoPropiedadBadge && (
+                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${estadoPropiedadBadge.className}`}>{estadoPropiedadBadge.label}</span>
+              )}
               <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${isReforma ? 'bg-slate-800 text-slate-200' : 'bg-orange-100 text-orange-700'}`}>{selectedProperty.operation}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
               {isComercial && !isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}

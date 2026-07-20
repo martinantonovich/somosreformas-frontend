@@ -150,7 +150,8 @@ export default function App() {
             cochera: prop.cochera ? 'Sí' : 'No',
             calefaccion: prop.calefaccion,
             sistemaAgua: prop.sistemaAgua,
-            estadoReforma: prop.estadoReforma || null
+            estadoReforma: prop.estadoReforma || null,
+            estadoPropiedad: prop.estadoPropiedad || null
           };
         });
 

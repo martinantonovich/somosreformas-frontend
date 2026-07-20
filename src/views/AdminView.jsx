@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 
 export default function AdminView({ setProperties, properties, navigateTo, triggerToast }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -23,6 +24,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     location: 'La Plata, Buenos Aires',
     operation: 'Venta',     // 'Venta', 'Alquiler' o 'No Disponible'
     estadoReforma: '',      // '', 'EN_PROCESO' o 'REALIZADA' (independiente de operation)
+    estadoPropiedad: '',    // '', 'RESERVADO', 'EN_NEGOCIACION', 'VENDIDO' o 'ALQUILADO' (cartel comercial)
     type: 'Departamento',
     address: '', 
     latitud: '', 
@@ -256,6 +258,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       descripcion: newProp.description,
       historiaReforma: newProp.estadoReforma ? newProp.reformStory : '',
       estadoReforma: newProp.estadoReforma || null,
+      estadoPropiedad: newProp.estadoPropiedad || null,
       imagenes: imagenesPayload,
       comparables: comparablesPayload
     };
@@ -342,7 +345,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         cochera: savedProperty.cochera === true || savedProperty.cochera === 'Sí' ? 'Sí' : 'No',
         calefaccion: savedProperty.calefaccion,
         sistemaAgua: savedProperty.sistemaAgua,
-        estadoReforma: savedProperty.estadoReforma || null
+        estadoReforma: savedProperty.estadoReforma || null,
+        estadoPropiedad: savedProperty.estadoPropiedad || null
       };
 
       if (isEditing) {
@@ -411,6 +415,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       location: prop.location || 'La Plata, Buenos Aires',
       operation: prop.operation || 'Venta', // Garantiza leer el formato de App.jsx
       estadoReforma: prop.estadoReforma || '',
+      estadoPropiedad: prop.estadoPropiedad || '',
       type: prop.type || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
@@ -542,6 +547,16 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                     <option value="">No es una reforma</option>
                     <option value="EN_PROCESO">En Proceso (mostrando avance de obra)</option>
                     <option value="REALIZADA">Realizada (obra terminada)</option>
+                  </select>
+                </div>
+
+                {/* Cartel comercial: Reservado / En Negociación / Vendido / Alquilado */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Cartel</label>
+                  <select value={newProp.estadoPropiedad || ''} onChange={(e) => setNewProp({...newProp, estadoPropiedad: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
+                    {ESTADOS_PROPIEDAD.map(estado => (
+                      <option key={estado.value} value={estado.value}>{estado.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -855,6 +870,9 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             <span>{p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operation === 'Venta' ? 'text-orange-400' : p.operation === 'No Disponible' ? 'text-slate-500' : 'text-blue-400'}`}>{p.operation}</span></span>
                             {p.estadoReforma === 'EN_PROCESO' && <span className="bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">En Proceso</span>}
                             {p.estadoReforma === 'REALIZADA' && <span className="bg-purple-950 text-purple-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">Realizada</span>}
+                            {getEstadoPropiedadBadge(p.estadoPropiedad) && (
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${getEstadoPropiedadBadge(p.estadoPropiedad).className}`}>{getEstadoPropiedadBadge(p.estadoPropiedad).label}</span>
+                            )}
                           </p>
                         </div>
                         <span className="text-xs font-bold text-white bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg font-mono whitespace-nowrap flex-shrink-0">
@@ -921,6 +939,9 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operation === 'Venta' ? 'bg-orange-950 text-orange-400' : p.operation === 'No Disponible' ? 'bg-slate-800 text-slate-400' : 'bg-blue-950 text-blue-400'}`}>{p.operation}</span>
                               {p.estadoReforma === 'EN_PROCESO' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950 text-amber-400">En Proceso</span>}
                               {p.estadoReforma === 'REALIZADA' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-950 text-purple-400">Realizada</span>}
+                              {getEstadoPropiedadBadge(p.estadoPropiedad) && (
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getEstadoPropiedadBadge(p.estadoPropiedad).className}`}>{getEstadoPropiedadBadge(p.estadoPropiedad).label}</span>
+                              )}
                             </div>
                           </td>
                           <td className="py-3 font-bold text-white font-mono">
