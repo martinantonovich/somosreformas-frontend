@@ -55,7 +55,7 @@ export default function CotizadorView({ triggerToast, navigateTo }) {
 
   const handleWhatsAppDirect = () => {
     const text = encodeURIComponent('¡Hola Somos Reformas! Quiero cotizar la reforma de mi propiedad.');
-    window.open(`https://wa.me/5492216397424?text=${text}`, '_blank');
+    window.open(`https://wa.me/5492257526756?text=${text}`, '_blank');
   };
 
   return (
@@ -174,7 +174,7 @@ export default function CotizadorView({ triggerToast, navigateTo }) {
               <p>📍 La Plata, Buenos Aires</p>
               <p>📍 La Costa, Buenos Aires</p>
               <p>✉ reformassomos@gmail.com</p>
-              <p>📞 +54 9 221 6397424</p>
+              <p>📞 +54 9 2257526756</p>
             </div>
           </div>
 

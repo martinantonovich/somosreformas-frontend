@@ -60,7 +60,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const handleWhatsAppRedirect = () => {
     // 1. Armamos el mensaje en base a tu lógica original
     const textEncoded = encodeURIComponent(getWhatsAppMessage(selectedProperty));
-    const waUrl = `https://wa.me/5492216397424?text=${textEncoded}`;
+    const waUrl = `https://wa.me/5492257526756?text=${textEncoded}`;
 
     // 2. 🚀 DETONADOR EN SEGUNDO PLANO PARA N8N
     // Generamos el lead con el origen "detalle_propiedad" para registrarlo en Google Sheets
@@ -69,7 +69,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
       email: "Click en Ficha",
       telefono: "Ver en chat de WhatsApp",
       mensaje: `El usuario solicitó asesoramiento inmediato por la propiedad: "${selectedProperty.title}"`,
-      id_propiedad: selectedProperty.id, // Pasamos el ID dinámico
+      idPropiedad: selectedProperty.id, // Pasamos el ID dinámico
       origen: "detalle_propiedad"       // El origen clave que lee tu n8n
     };
 
