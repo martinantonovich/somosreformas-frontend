@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { stripHtml } from '../utils/richText';
 
 export default function ReformasView({ enProceso, realizadas, navigateToDetail }) {
   const [activeTab, setActiveTab] = useState('realizadas');
@@ -87,7 +88,7 @@ export default function ReformasView({ enProceso, realizadas, navigateToDetail }
                       {property.title}
                     </h3>
                     <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 mt-1.5 font-light leading-relaxed">
-                      {property.description}
+                      {stripHtml(property.description)}
                     </p>
                   </div>
 

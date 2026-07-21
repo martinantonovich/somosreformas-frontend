@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 // Podés dejar esta importación por ahora, pero ya no la usaremos como estado inicial
 import { INITIAL_PROPERTIES } from './data/properties.js';
 import Header from './components/Header.jsx';
@@ -6,10 +6,13 @@ import Footer from './components/Footer.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
 import HomeView from './views/HomeView.jsx';
 import DetailView from './views/DetailView.jsx';
-import AdminView from './views/AdminView.jsx';
 import ReformasView from './views/ReformasView.jsx';
 import CotizadorView from './views/CotizadorView.jsx';
 import PoliticaPrivacidadView from './views/PoliticaPrivacidadView.jsx';
+
+// Carga diferida: AdminView (y el editor de texto enriquecido que usa adentro) sólo se
+// descargan al entrar al panel, no en cada visita al sitio público.
+const AdminView = lazy(() => import('./views/AdminView.jsx'));
 
 export default function App() {
   const [view, setView] = useState('home'); 
@@ -261,12 +264,14 @@ export default function App() {
       )}
 
       {view === 'admin' && (
-        <AdminView
-          setProperties={setProperties}
-          properties={properties}
-          navigateTo={navigateTo}
-          triggerToast={triggerToast}
-        />
+        <Suspense fallback={<div className="p-10 text-center text-slate-400">Cargando panel...</div>}>
+          <AdminView
+            setProperties={setProperties}
+            properties={properties}
+            navigateTo={navigateTo}
+            triggerToast={triggerToast}
+          />
+        </Suspense>
       )}
 
       {view === 'politica' && (

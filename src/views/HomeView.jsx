@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
+import { stripHtml } from '../utils/richText';
 
 export default function HomeView({ properties, navigateToDetail }) {
   const [filterLocation, setFilterLocation] = useState('');
@@ -180,7 +181,7 @@ export default function HomeView({ properties, navigateToDetail }) {
                       {property.title}
                     </h3>
                     <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 mt-1.5 font-light leading-relaxed">
-                      {property.description}
+                      {stripHtml(property.description)}
                     </p>
                   </div>
 

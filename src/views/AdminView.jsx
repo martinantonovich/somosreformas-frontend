@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
+import RichTextEditor from '../components/RichTextEditor';
 
 export default function AdminView({ setProperties, properties, navigateTo, triggerToast }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -866,7 +867,11 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
                 <div className="border-t border-slate-800 pt-2">
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Reseña Comercial</label>
-                  <textarea rows="2" placeholder="Acabados, iluminación..." value={newProp.description || ''} onChange={(e) => setNewProp({...newProp, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none"></textarea>
+                  <RichTextEditor
+                    value={newProp.description || ''}
+                    onChange={(html) => setNewProp(prev => ({ ...prev, description: html }))}
+                    placeholder="Acabados, iluminación..."
+                  />
                 </div>
 
                 {!!newProp.estadoReforma && (

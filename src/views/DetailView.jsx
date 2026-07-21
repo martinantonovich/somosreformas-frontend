@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
+import { RICH_TEXT_CLASSES } from '../utils/richText';
 
 export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
@@ -323,7 +324,10 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               
               <div className="border-t border-neutral-100 pt-3 mt-3">
                 <h4 className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1.5">Descripción de la Propiedad</h4>
-                <p className="text-xs text-slate-600 leading-relaxed font-light whitespace-pre-line">{selectedProperty.description || selectedProperty.descripcion}</p>
+                <div
+                  className={`text-sm text-slate-900 leading-relaxed whitespace-pre-line ${RICH_TEXT_CLASSES}`}
+                  dangerouslySetInnerHTML={{ __html: selectedProperty.description || selectedProperty.descripcion || '' }}
+                />
               </div>
             </div>
           </div>
