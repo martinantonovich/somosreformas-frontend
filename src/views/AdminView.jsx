@@ -210,21 +210,19 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       }
     });
 
-    const comparablesPayload = newProp.estadoReforma
-      ? newProp.comparables
-          .filter(c => c.spaceName?.trim() && (c.before?.trim() || c.after?.trim() || c.procesoMedia?.length > 0))
-          .map(c => ({
-            nombreEspacio: c.spaceName || 'Espacio Común',
-            urlAntes: c.before?.trim() || null,
-            urlDespues: c.after?.trim() || null,
-            descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
-            procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
-              urlMedia: m.url,
-              tipoMedia: m.tipo,
-              descripcion: m.descripcion?.trim() || null
-            }))
-          }))
-      : [];
+    const comparablesPayload = newProp.comparables
+      .filter(c => c.spaceName?.trim() && (c.before?.trim() || c.after?.trim() || c.procesoMedia?.length > 0))
+      .map(c => ({
+        nombreEspacio: c.spaceName || 'Espacio Común',
+        urlAntes: c.before?.trim() || null,
+        urlDespues: c.after?.trim() || null,
+        descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
+        procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
+          urlMedia: m.url,
+          tipoMedia: m.tipo,
+          descripcion: m.descripcion?.trim() || null
+        }))
+      }));
 
     const propertyPayload = {
       titulo: newProp.title,
@@ -377,7 +375,18 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     });
     triggerToast("Foto removida de la galería", "info");
   };
-  
+
+  // ↔️ REORDENAR GALERÍA: la posición 0 es siempre la portada
+  const moveExistingImage = (index, direction) => {
+    setNewProp(prev => {
+      const imagenes = [...(prev.existingImages || [])];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= imagenes.length) return prev;
+      [imagenes[index], imagenes[targetIndex]] = [imagenes[targetIndex], imagenes[index]];
+      return { ...prev, existingImages: imagenes };
+    });
+  };
+
   // 📝 PREPARACIÓN AUTOMÁTICA DEL FORMULARIO DE EDICIÓN
   const handleStartEdit = (prop) => {
     setIsEditing(true);
@@ -732,13 +741,33 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             {index === 0 && (
                               <span className="absolute bottom-0 inset-x-0 bg-orange-600/90 text-white text-[7px] text-center uppercase font-black tracking-widest py-0.5">Portada</span>
                             )}
-                            <button 
-                              type="button" 
-                              onClick={() => handleRemoveImage(urlString)} 
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(urlString)}
                               className="absolute top-0 right-0 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-bl flex items-center justify-center shadow hover:bg-red-700 transition"
                             >
                               ✕
                             </button>
+                            <div className="absolute top-0 left-0 flex">
+                              <button
+                                type="button"
+                                onClick={() => moveExistingImage(index, -1)}
+                                disabled={index === 0}
+                                title="Mover antes"
+                                className="bg-slate-950/80 text-white font-bold text-[10px] w-4 h-4 rounded-br flex items-center justify-center shadow hover:bg-slate-800 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                ‹
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveExistingImage(index, 1)}
+                                disabled={index === newProp.existingImages.length - 1}
+                                title="Mover después"
+                                className="bg-slate-950/80 text-white font-bold text-[10px] w-4 h-4 flex items-center justify-center shadow hover:bg-slate-800 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                              >
+                                ›
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -752,9 +781,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                   </div>
                 </div>
 
-                {/* 📐 COMPARADOR RENDERIZADO CONDICIONAL: sólo si la propiedad es (o fue) una reforma */}
-                {!!newProp.estadoReforma && (
-                  <div className="border-t border-slate-800 pt-2 space-y-3">
+                {/* 📐 Estudio de obra (antes/después): disponible para cualquier propiedad, no solo reformas */}
+                <div className="border-t border-slate-800 pt-2 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Estudio de Obra ({newProp.comparables?.length || 0})</span>
                       <button type="button" onClick={addComparableSpace} className="px-2 py-0.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded text-[10px] uppercase">+</button>
@@ -835,7 +863,6 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                       </div>
                     ))}
                   </div>
-                )}
 
                 <div className="border-t border-slate-800 pt-2">
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Reseña Comercial</label>
