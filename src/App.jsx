@@ -64,8 +64,15 @@ export default function App() {
 
   // 🌱 Al cargar la página por primera vez, si la URL ya apunta a /reformas, /cotizador o /admin,
   // arrancamos directo ahí (el caso de /?prop= se resuelve más abajo una vez que llegan las propiedades)
+  // 🔒 /admin es una excepción: solo se respeta si ya hay una sesión de admin guardada (para que
+  // el admin pueda refrescar/volver a entrar con el link). Si alguien escribe /admin sin sesión,
+  // lo mandamos a la home — el acceso real es el ícono secreto del footer.
   useEffect(() => {
     const viewFromPath = Object.keys(pathByView).find(key => pathByView[key] === window.location.pathname);
+    if (viewFromPath === 'admin' && !localStorage.getItem('reformas_admin_session')) {
+      window.history.replaceState({}, '', '/');
+      return;
+    }
     if (viewFromPath && viewFromPath !== 'home') setView(viewFromPath);
   }, []);
 
