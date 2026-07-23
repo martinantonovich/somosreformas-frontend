@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import RichTextEditor from '../components/RichTextEditor';
+import { isVideoUrl } from '../utils/media';
 
 export default function AdminView({ setProperties, properties, navigateTo, triggerToast }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -70,7 +71,6 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     const cloudName = "dldibpwyr";
     const uploadPreset = "somos_reformas_preset";
     const isProcesoMedia = field === 'procesoMedia';
-    const resourceType = field === 'compVideo' ? 'video' : 'image';
 
     try {
       const archivosVacios = Array.from(files).filter(f => f.size === 0).map(f => f.name);
@@ -80,9 +80,9 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
       const uploadPromises = Array.from(files).map(async (file) => {
         console.log(`📤 Subiendo "${file.name}" (${(file.size / 1024).toFixed(0)} KB, ${file.type})`);
-        const fileResourceType = isProcesoMedia
-          ? (file.type.startsWith('video') ? 'video' : 'image')
-          : resourceType;
+        // Detectamos el tipo por archivo (no por campo): así la galería y el antes/después
+        // también aceptan video, no solo procesoMedia.
+        const fileResourceType = file.type.startsWith('video') ? 'video' : 'image';
 
         const formData = new FormData();
         formData.append("file", file);
@@ -726,8 +726,9 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                 </div>
                 {/* 📸 GALERÍA MULTIMEDIA INTERACTIVA */}
                 <div className="border-t border-slate-800 pt-2 space-y-2">
-                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">Administrador de Fotos</span>
-                  
+                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">Administrador de Fotos y Videos</span>
+                  <p className="text-[9px] text-slate-500 -mt-1">La primera posición es la portada — usá las flechas ‹ › para que quede una foto ahí, no un video.</p>
+
                   {/* Vista previa de imágenes cargadas con opción de borrar */}
                   {newProp.existingImages?.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800/60">
@@ -738,7 +739,11 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
                         return (
                           <div key={index} className="relative aspect-video rounded overflow-hidden border border-slate-800 group bg-slate-900">
-                            <img src={urlString} alt="Cargada" className="w-full h-full object-cover" />
+                            {isVideoUrl(urlString) ? (
+                              <video src={urlString} controls className="w-full h-full object-cover" />
+                            ) : (
+                              <img src={urlString} alt="Cargada" className="w-full h-full object-cover" />
+                            )}
                             {index === 0 && (
                               <span className="absolute bottom-0 inset-x-0 bg-orange-600/90 text-white text-[7px] text-center uppercase font-black tracking-widest py-0.5">Portada</span>
                             )}
@@ -777,7 +782,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
                   <div className="bg-slate-950 p-2 rounded-xl border border-slate-800/60 space-y-1">
                     <label className="block text-[9px] text-slate-400 font-bold uppercase">Subir nuevas fotos a la galería</label>
-                    <input type="file" accept="image/*" multiple onChange={(e) => uploadImagesToCloudinary(e, 'galleryUrls')} className="w-full text-slate-400 text-xs cursor-pointer" />
+                    <input type="file" accept="image/*,video/*" multiple onChange={(e) => uploadImagesToCloudinary(e, 'galleryUrls')} className="w-full text-slate-400 text-xs cursor-pointer" />
                     <textarea readOnly rows="1" placeholder="Nuevas URLs listas..." value={newProp.galleryUrls || ''} className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[9px] font-mono mt-1" />
                   </div>
                 </div>
@@ -800,10 +805,14 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             <label className="text-slate-500 font-bold block mb-1">Antes de la Reforma</label>
                             {comp.before && (
                               <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
-                                <img src={comp.before} alt="Antes" className="w-full h-full object-cover" />
+                                {isVideoUrl(comp.before) ? (
+                                  <video src={comp.before} controls className="w-full h-full object-cover" />
+                                ) : (
+                                  <img src={comp.before} alt="Antes" className="w-full h-full object-cover" />
+                                )}
                               </div>
                             )}
-                            <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compBefore', idx)} className="w-full text-slate-400 text-[10px]" />
+                            <input type="file" accept="image/*,video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compBefore', idx)} className="w-full text-slate-400 text-[10px]" />
                           </div>
 
                           {/* FOTO DESPUÉS */}
@@ -813,10 +822,14 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             </label>
                             {comp.after && (
                               <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
-                                <img src={comp.after} alt="Después" className="w-full h-full object-cover" />
+                                {isVideoUrl(comp.after) ? (
+                                  <video src={comp.after} controls className="w-full h-full object-cover" />
+                                ) : (
+                                  <img src={comp.after} alt="Después" className="w-full h-full object-cover" />
+                                )}
                               </div>
                             )}
-                            <input type="file" accept="image/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full text-slate-400 text-[10px]" />
+                            <input type="file" accept="image/*,video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full text-slate-400 text-[10px]" />
                           </div>
                         </div>
 

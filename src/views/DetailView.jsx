@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import { RICH_TEXT_CLASSES } from '../utils/richText';
+import { isVideoUrl } from '../utils/media';
 
 export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
@@ -98,6 +99,20 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
     navigator.clipboard.writeText(customUrl)
       .then(() => triggerToast("¡Enlace listo para enviar copiado al portapapeles!", "success"))
       .catch(() => triggerToast("Error al copiar el enlace", "error"));
+  };
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const { generarFichaPDF } = await import('../utils/pdfFicha');
+      await generarFichaPDF(selectedProperty);
+    } catch (error) {
+      console.error('Error generando el PDF:', error);
+      triggerToast('No se pudo generar el PDF. Probá de nuevo.', 'error');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -206,12 +221,20 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
             
             {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
             <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
-              <img 
-                src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} 
-                alt="Propiedad" 
-                className="w-full h-full object-contain cursor-zoom-in" 
-                onClick={() => setIsModalOpen(true)}
-              />
+              {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
+                <video
+                  src={selectedProperty.gallery[currentGalleryIndex]}
+                  controls
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <img
+                  src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
+                  alt="Propiedad"
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={() => setIsModalOpen(true)}
+                />
+              )}
               {selectedProperty.gallery?.length > 1 && (
                 <>
                   <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
@@ -226,7 +249,11 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
                 {selectedProperty.gallery.map((img, idx) => (
                   <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
-                    <img src={img} alt="Mini" className="w-full h-full object-cover" />
+                    {isVideoUrl(img) ? (
+                      <video src={img} preload="metadata" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={img} alt="Mini" className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -252,6 +279,9 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               </button>
               <button onClick={handleCopyLink} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98]">
                 🔗 Enlace de la ficha
+              </button>
+              <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait">
+                {isGeneratingPdf ? 'Generando PDF...' : '📄 Descargar ficha en PDF'}
               </button>
             </div>
           </div>
@@ -399,7 +429,35 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
 
             {(() => {
               const activeComp = selectedProperty.comparables[activeComparableIndex];
-              const hasBeforeAfter = activeComp.before && activeComp.after;
+              // El slider de arrastre solo tiene sentido comparando dos fotos; si alguno de los
+              // dos lados es un video, lo mostramos simplemente uno al lado del otro.
+              const hasBeforeAfter = activeComp.before && activeComp.after
+                && !isVideoUrl(activeComp.before) && !isVideoUrl(activeComp.after);
+              const hasBeforeAfterMixed = activeComp.before && activeComp.after
+                && (isVideoUrl(activeComp.before) || isVideoUrl(activeComp.after));
+
+              if (hasBeforeAfterMixed) {
+                return (
+                  <div className="grid grid-cols-2 gap-2 max-w-2xl mx-auto">
+                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl">
+                      {isVideoUrl(activeComp.before) ? (
+                        <video src={activeComp.before} controls className="w-full h-full object-contain" />
+                      ) : (
+                        <img src={activeComp.before} alt="Antes" className="w-full h-full object-contain" />
+                      )}
+                      <span className="absolute left-2 bottom-2 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">Antes</span>
+                    </div>
+                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl">
+                      {isVideoUrl(activeComp.after) ? (
+                        <video src={activeComp.after} controls className="w-full h-full object-contain" />
+                      ) : (
+                        <img src={activeComp.after} alt="Después" className="w-full h-full object-contain" />
+                      )}
+                      <span className="absolute right-2 bottom-2 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">Después</span>
+                    </div>
+                  </div>
+                );
+              }
 
               if (hasBeforeAfter) {
                 return (
@@ -465,7 +523,11 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               if (activeComp.before) {
                 return (
                   <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
-                    <img src={activeComp.before} alt="Estado antes de comenzar" className="w-full h-auto object-contain block" />
+                    {isVideoUrl(activeComp.before) ? (
+                      <video src={activeComp.before} controls className="w-full h-auto object-contain block" />
+                    ) : (
+                      <img src={activeComp.before} alt="Estado antes de comenzar" className="w-full h-auto object-contain block" />
+                    )}
                     <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
                       Estado antes de comenzar
                     </span>
@@ -552,11 +614,20 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               className="relative max-w-5xl max-h-[85vh] flex items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <img 
-                src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage} 
-                alt="Propiedad Grande" 
-                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-              />
+              {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
+                <video
+                  src={selectedProperty.gallery[currentGalleryIndex]}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                />
+              ) : (
+                <img
+                  src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
+                  alt="Propiedad Grande"
+                  className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                />
+              )}
 
               {selectedProperty.gallery?.length > 1 && (
                 <>
