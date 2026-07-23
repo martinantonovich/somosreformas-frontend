@@ -187,13 +187,14 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   const handleFormSubmit = (e) => {
     e.preventDefault();
     
-    // Consolidamos todas las URLs de imágenes del formulario
-    let listaCompletaUrls = [...(newProp.existingImages || [])];
-    
+    // Consolidamos todas las imágenes del formulario (objetos {url, incluirEnPdf})
+    let listaCompletaImgs = [...(newProp.existingImages || [])];
+
     if (newProp.galleryUrls?.trim()) {
       newProp.galleryUrls.split(',').forEach(url => {
-        if (url.trim() && !listaCompletaUrls.includes(url.trim())) {
-          listaCompletaUrls.push(url.trim());
+        const urlLimpia = url.trim();
+        if (urlLimpia && !listaCompletaImgs.some(img => img.url === urlLimpia)) {
+          listaCompletaImgs.push({ url: urlLimpia, incluirEnPdf: false });
         }
       });
     }
@@ -201,13 +202,13 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     // 🎯 REGLA DE NEGOCIO: La primera de la lista pasa a ser la de Portada (esPortada = true)
     // El resto se insertan como secundarias (esPortada = false)
     const imagenesPayload = [];
-    listaCompletaUrls.forEach((url, index) => {
+    listaCompletaImgs.forEach((img, index) => {
       if (index === 0) {
-        imagenesPayload.push({ urlImagen: url, esPortada: true });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: true, incluirEnPdf: img.incluirEnPdf || false });
         // Se duplica al principio de las secundarias para que el carrusel público la contenga
-        imagenesPayload.push({ urlImagen: url, esPortada: false });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false });
       } else {
-        imagenesPayload.push({ urlImagen: url, esPortada: false });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false });
       }
     });
 
@@ -281,17 +282,24 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       const imagenPortadaObj = savedProperty.imagenes?.find(img => 
         img.esPortada === true || img.es_portada === true || img.portada === true
       );
-      const primaryImg = imagenPortadaObj 
+      const primaryImg = imagenPortadaObj
         ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
-        : listaCompletaUrls[0];
+        : listaCompletaImgs[0]?.url;
 
       // 📸 2. Filtramos el resto de las imágenes excluyendo la portada para evitar duplicados desordenados
-      const filtradasSinPortada = savedProperty.imagenes?.filter(img => 
+      const filtradasSinPortada = savedProperty.imagenes?.filter(img =>
         !(img.esPortada === true || img.es_portada === true || img.portada === true)
-      ).map(img => img.urlImagen || img.url_imagen).filter(Boolean) || listaCompletaUrls.slice(1);
+      ).map(img => img.urlImagen || img.url_imagen).filter(Boolean) || listaCompletaImgs.slice(1).map(img => img.url);
 
       // 🎯 Regla de negocio: Forzamos que la foto de portada quede siempre como primera en la galería secundaria
       const galleryFinal = [primaryImg, ...filtradasSinPortada.filter(url => url !== primaryImg)];
+
+      // Fotos marcadas para el PDF (sin duplicados)
+      const pdfImagesFinal = [...new Set(
+        (savedProperty.imagenes || [])
+          .filter(img => img.incluirEnPdf === true || img.incluir_en_pdf === true)
+          .map(img => img.urlImagen || img.url_imagen)
+      )];
 
       // 📐 3. Mapeo seguro de comparables (Antes y Después) resolviendo las propiedades en inglés/español
       const comparablesFinal = (savedProperty.comparables || []).map(c => ({
@@ -332,6 +340,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         longitud: savedProperty.longitud,
         coverImage: primaryImg,
         gallery: galleryFinal,
+        pdfImages: pdfImagesFinal,
         comparables: comparablesFinal,
         services: {
           electricidad: savedProperty.servicioElectricidad ?? savedProperty.services?.electricidad ?? true,
@@ -367,14 +376,20 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   // ✕ REMOVER UNA SOLA IMAGEN DE LA GALERÍA
   const handleRemoveImage = (urlToRemove) => {
     if (!urlToRemove) return;
-    setNewProp(prev => {
-      const filtradas = (prev.existingImages || []).filter(img => {
-        const urlStr = typeof img === 'string' ? img : (img.urlImagen || img.url_imagen || '');
-        return urlStr.trim() !== urlToRemove.trim();
-      });
-      return { ...prev, existingImages: filtradas };
-    });
+    setNewProp(prev => ({
+      ...prev,
+      existingImages: (prev.existingImages || []).filter(img => img.url.trim() !== urlToRemove.trim())
+    }));
     triggerToast("Foto removida de la galería", "info");
+  };
+
+  // 📄 TOGGLE: marcar/desmarcar una foto para que se incluya en el PDF de la ficha
+  const toggleIncluirEnPdf = (index) => {
+    setNewProp(prev => {
+      const imagenes = [...(prev.existingImages || [])];
+      imagenes[index] = { ...imagenes[index], incluirEnPdf: !imagenes[index].incluirEnPdf };
+      return { ...prev, existingImages: imagenes };
+    });
   };
 
   // ↔️ REORDENAR GALERÍA: la posición 0 es siempre la portada
@@ -398,9 +413,10 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     const coverObj = rawImages.find(img => img.esPortada === true || img.portada === true);
     const coverUrl = prop.coverImage || coverObj?.urlImagen || '';
 
+    const pdfImagesSet = new Set(prop.pdfImages || []);
     const todasLasFotos = [];
     if (coverUrl && coverUrl.trim()) todasLasFotos.push(coverUrl.trim());
-    
+
     // Sumamos la galería asegurando strings limpios
     const galleryUrls = prop.gallery || [];
     galleryUrls.forEach(url => {
@@ -408,6 +424,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         todasLasFotos.push(url.trim());
       }
     });
+    const todasLasFotosConFlag = todasLasFotos.map(url => ({ url, incluirEnPdf: pdfImagesSet.has(url) }));
 
     const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.spaceName || '',
@@ -455,7 +472,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       description: prop.description || '',
       reformStory: prop.reformStory || '',
       
-      existingImages: todasLasFotos, // Colección limpia de strings planos
+      existingImages: todasLasFotosConFlag,
       galleryUrls: '',
       coverImage: coverUrl,
       comparables: formattedComps
@@ -727,14 +744,13 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                 {/* 📸 GALERÍA MULTIMEDIA INTERACTIVA */}
                 <div className="border-t border-slate-800 pt-2 space-y-2">
                   <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">Administrador de Fotos y Videos</span>
-                  <p className="text-[9px] text-slate-500 -mt-1">La primera posición es la portada — usá las flechas ‹ › para que quede una foto ahí, no un video.</p>
+                  <p className="text-[9px] text-slate-500 -mt-1">La primera posición es la portada — usá las flechas ‹ › para que quede una foto ahí, no un video. Marcá "📄 PDF" en las fotos que quieras incluir en la ficha descargable (si no marcás ninguna, se usan las primeras 4).</p>
 
                   {/* Vista previa de imágenes cargadas con opción de borrar */}
                   {newProp.existingImages?.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800/60">
                       {newProp.existingImages.map((img, index) => {
-                        // Extraemos el string limpio de la URL de forma segura
-                        const urlString = typeof img === 'string' ? img : (img.urlImagen || img.url_imagen || '');
+                        const urlString = img.url;
                         if (!urlString) return null;
 
                         return (
@@ -774,6 +790,16 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                                 ›
                               </button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => toggleIncluirEnPdf(index)}
+                              title="Incluir en la ficha PDF"
+                              className={`absolute bottom-0 right-0 text-[7px] font-black uppercase px-1.5 py-0.5 rounded-tl transition ${
+                                img.incluirEnPdf ? 'bg-emerald-600 text-white' : 'bg-slate-950/80 text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              📄 PDF
+                            </button>
                           </div>
                         );
                       })}

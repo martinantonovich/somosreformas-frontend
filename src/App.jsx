@@ -109,6 +109,13 @@ export default function App() {
             galeriaUrls.push(coverImageUrl);
           }
 
+          // Fotos marcadas a mano por el admin para el PDF (si no eligió ninguna, el PDF usa las primeras de la galería)
+          const pdfImages = [...new Set(
+            prop.imagenes?.filter(img =>
+              img.incluirEnPdf === true || img.incluir_en_pdf === true
+            ).map(img => img.urlImagen || img.url_imagen) || []
+          )];
+
           // 3. Mapeamos los comparables
           const comparablesMapeados = prop.comparables?.map(comp => ({
             spaceName: comp.nombreEspacio || 'Espacio Principal',
@@ -148,6 +155,7 @@ export default function App() {
             longitud: prop.longitud,
             coverImage: coverImageUrl,
             gallery: galeriaUrls,
+            pdfImages,
             comparables: comparablesMapeados,
             services: {
               electricidad: prop.servicioElectricidad,
