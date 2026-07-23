@@ -1,5 +1,6 @@
 import { stripHtml } from './richText';
 import { isVideoUrl } from './media';
+import { generarMapaEstatico } from './osmMap';
 
 // Las fuentes básicas de PDF (Helvetica) sólo soportan WinAnsi/Latin-1 + un puñado de símbolos
 // de tipografía (comillas, guiones, viñeta). Cualquier emoji u otro símbolo fuera de eso sale
@@ -13,8 +14,6 @@ function sanitizeForPdf(text) {
     .trim();
 }
 
-// Convierte una URL de imagen a data URL para poder incrustarla en el PDF.
-// Si falla (CORS, red, etc.) devolvemos null y el PDF se genera igual, sin esa foto.
 async function urlToDataUrl(url) {
   try {
     const response = await fetch(url, { mode: 'cors' });
@@ -44,95 +43,163 @@ function encajarEnCaja(imgWidth, imgHeight, maxWidth, maxHeight) {
   return { width: imgWidth * escala, height: imgHeight * escala };
 }
 
-function filaFicha(doc, x, y, etiqueta, valor) {
-  doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(120, 120, 120);
-  doc.text(sanitizeForPdf(etiqueta).toUpperCase(), x, y);
-  doc.setFont('helvetica', 'bold').setFontSize(11).setTextColor(20, 20, 20);
-  doc.text(sanitizeForPdf(String(valor)), x, y + 5.5);
+// 🎨 Paleta de marca (la misma que el sitio: navy oscuro + acento naranja)
+const NAVY = [2, 6, 23];
+const ORANGE = [234, 88, 12];
+const CREAM = [250, 248, 245];
+const GRAY_LINE = [225, 220, 212];
+const GRAY_TEXT = [90, 90, 90];
+const DARK_TEXT = [20, 20, 20];
+
+const HEADER_H = 24;
+const FOOTER_H = 16;
+const MARGIN = 14;
+
+function drawChrome(doc, pageWidth, pageHeight) {
+  // Header
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pageWidth, HEADER_H, 'F');
+  doc.setFont('helvetica', 'bold').setFontSize(13).setTextColor(255, 255, 255);
+  doc.text('SOMOS', MARGIN, HEADER_H / 2 + 3);
+  doc.setTextColor(...ORANGE);
+  doc.text('REFORMAS', MARGIN + doc.getTextWidth('SOMOS ') + 1, HEADER_H / 2 + 3);
+  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(180, 180, 190);
+  doc.text('Real Estate & Premium Design', pageWidth - MARGIN, HEADER_H / 2 + 3, { align: 'right' });
+
+  // Footer (el número de página se agrega al final, cuando ya sabemos el total)
+  doc.setFillColor(...NAVY);
+  doc.rect(0, pageHeight - FOOTER_H, pageWidth, FOOTER_H, 'F');
+  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(220, 220, 225);
+  doc.text('somosreformas.com.ar', MARGIN, pageHeight - FOOTER_H / 2 + 1.5);
+  doc.text('+54 9 2257526756', pageWidth - MARGIN, pageHeight - FOOTER_H / 2 + 1.5, { align: 'right' });
+
+  // Marco + fondo crema del área de contenido, para que no sea solo blanco liso
+  const frameY = HEADER_H + 4;
+  const frameH = pageHeight - HEADER_H - FOOTER_H - 8;
+  doc.setFillColor(...CREAM);
+  doc.roundedRect(MARGIN - 4, frameY, pageWidth - (MARGIN - 4) * 2, frameH, 3, 3, 'F');
+  doc.setDrawColor(...ORANGE).setLineWidth(0.6);
+  doc.roundedRect(MARGIN - 4, frameY, pageWidth - (MARGIN - 4) * 2, frameH, 3, 3, 'S');
+
+  return HEADER_H + 10; // Y donde arranca el contenido
+}
+
+function crearEstado(doc) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  return { doc, pageWidth, pageHeight, y: drawChrome(doc, pageWidth, pageHeight) };
+}
+
+// Si lo próximo a dibujar no entra en lo que queda de página, arranca una hoja nueva.
+function asegurarEspacio(state, necesario) {
+  const limite = state.pageHeight - FOOTER_H - 6;
+  if (state.y + necesario > limite) {
+    state.doc.addPage();
+    state.y = drawChrome(state.doc, state.pageWidth, state.pageHeight);
+  }
+}
+
+function tituloSeccion(state, texto) {
+  asegurarEspacio(state, 10);
+  state.doc.setFillColor(...ORANGE);
+  state.doc.rect(MARGIN, state.y - 3, 3, 3, 'F');
+  state.doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...NAVY);
+  state.doc.text(sanitizeForPdf(texto).toUpperCase(), MARGIN + 5, state.y);
+  state.y += 6;
+}
+
+function filaFicha(state, x, y, etiqueta, valor) {
+  const { doc } = state;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x, y - 4.5, 40, 13, 1.5, 1.5, 'F');
+  doc.setDrawColor(...GRAY_LINE).setLineWidth(0.3);
+  doc.roundedRect(x, y - 4.5, 40, 13, 1.5, 1.5, 'S');
+  doc.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(140, 140, 140);
+  doc.text(sanitizeForPdf(etiqueta).toUpperCase(), x + 2.5, y);
+  doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(...DARK_TEXT);
+  doc.text(sanitizeForPdf(String(valor)), x + 2.5, y + 5.5);
 }
 
 // 📄 Arma un PDF de la ficha técnica de la propiedad, con el mismo diseño estándar para todas.
 export async function generarFichaPDF(property) {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  let y = 15;
-
-  // Encabezado con marca
-  doc.setFillColor(2, 6, 23);
-  doc.rect(0, 0, pageWidth, 22, 'F');
-  doc.setFont('helvetica', 'bold').setFontSize(14).setTextColor(255, 255, 255);
-  doc.text('SOMOS', margin, 14);
-  doc.setTextColor(234, 88, 12);
-  doc.text('REFORMAS', margin + doc.getTextWidth('SOMOS ') + 2, 14);
-  y = 32;
+  const state = crearEstado(doc);
+  const { pageWidth } = state;
+  const contentWidth = pageWidth - MARGIN * 2;
 
   // Fotos: las que eligió el admin (📄 PDF en el panel), o si no eligió ninguna, las primeras
-  // 4 de la galería (que ya incluyen la portada como primera). Se descartan videos: un PDF no
-  // reproduce video, así que si el admin marcó uno, simplemente no entra en la ficha.
+  // 4 de la galería (que ya incluyen la portada como primera). Se descartan videos.
   const candidatas = (property.pdfImages?.length > 0 ? property.pdfImages : (property.gallery || []).slice(0, 4))
     .filter(url => url && !isVideoUrl(url));
-
   const [fotoPrincipalUrl, ...fotosSecundariasUrls] = candidatas;
 
-  // Foto principal: ocupa el ancho completo, alto según su propia proporción (sin estirarla)
+  // Foto principal
   if (fotoPrincipalUrl) {
     const foto = await urlToDataUrl(fotoPrincipalUrl);
     if (foto) {
-      const maxWidth = pageWidth - margin * 2;
-      const maxHeight = 95;
-      const { width, height } = encajarEnCaja(foto.width, foto.height, maxWidth, maxHeight);
-      const xCentrado = margin + (maxWidth - width) / 2;
+      const maxHeight = 80;
+      asegurarEspacio(state, maxHeight + 4);
+      const { width, height } = encajarEnCaja(foto.width, foto.height, contentWidth, maxHeight);
+      const x = MARGIN + (contentWidth - width) / 2;
       try {
-        doc.addImage(foto.dataUrl, foto.formato, xCentrado, y, width, height, undefined, 'FAST');
+        doc.addImage(foto.dataUrl, foto.formato, x, state.y, width, height, undefined, 'FAST');
+        doc.setDrawColor(...GRAY_LINE).setLineWidth(0.3).rect(x, state.y, width, height, 'S');
       } catch {
         // Formato no soportado por jsPDF: seguimos sin la foto.
       }
-      y += maxHeight + 8;
+      state.y += maxHeight + 8;
     }
   }
 
   // Título, ubicación y precio
-  doc.setFont('helvetica', 'bold').setFontSize(16).setTextColor(15, 15, 15);
-  doc.text(sanitizeForPdf(property.title) || 'Propiedad', margin, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(90, 90, 90);
-  doc.text(sanitizeForPdf(`${property.direccion ? property.direccion + ' — ' : ''}${property.location || ''}`), margin, y);
-  y += 8;
+  asegurarEspacio(state, 24);
+  doc.setFont('helvetica', 'bold').setFontSize(16).setTextColor(...NAVY);
+  doc.text(sanitizeForPdf(property.title) || 'Propiedad', MARGIN, state.y);
+  state.y += 6;
+  doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(...GRAY_TEXT);
+  doc.text(sanitizeForPdf(`${property.direccion ? property.direccion + ' — ' : ''}${property.location || ''}`), MARGIN, state.y);
+  state.y += 8;
 
   if (property.operation !== 'No Disponible') {
     const moneda = property.operation === 'Venta' ? 'USD' : 'ARS';
-    doc.setFont('helvetica', 'bold').setFontSize(13).setTextColor(234, 88, 12);
-    doc.text(sanitizeForPdf(`${property.operation} — ${moneda} ${(property.price ?? 0).toLocaleString('es-AR')}`), margin, y);
-    y += 10;
+    const texto = sanitizeForPdf(`${property.operation} — ${moneda} ${(property.price ?? 0).toLocaleString('es-AR')}`);
+    doc.setFont('helvetica', 'bold').setFontSize(12);
+    const anchoTexto = doc.getTextWidth(texto);
+    doc.setFillColor(...ORANGE);
+    doc.roundedRect(MARGIN, state.y - 5.5, anchoTexto + 8, 9, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(texto, MARGIN + 4, state.y);
+    state.y += 12;
   } else {
-    y += 4;
+    state.y += 4;
   }
 
-  // Fotos secundarias: grilla en su propia proporción, cada una encajada en su celda (sin recortar)
+  // Fotos secundarias
   if (fotosSecundariasUrls.length > 0) {
     const fotos = (await Promise.all(fotosSecundariasUrls.map(urlToDataUrl))).filter(Boolean);
     if (fotos.length > 0) {
+      const cellHeight = 36;
+      asegurarEspacio(state, cellHeight + 6);
       const gap = 3;
-      const cellWidth = (pageWidth - margin * 2 - gap * (fotos.length - 1)) / fotos.length;
-      const cellHeight = 38;
+      const cellWidth = (contentWidth - gap * (fotos.length - 1)) / fotos.length;
       fotos.forEach((foto, idx) => {
         const { width, height } = encajarEnCaja(foto.width, foto.height, cellWidth, cellHeight);
-        const cellX = margin + idx * (cellWidth + gap);
+        const cellX = MARGIN + idx * (cellWidth + gap);
         const x = cellX + (cellWidth - width) / 2;
-        const yImg = y + (cellHeight - height) / 2;
+        const yImg = state.y + (cellHeight - height) / 2;
         try {
           doc.addImage(foto.dataUrl, foto.formato, x, yImg, width, height, undefined, 'FAST');
+          doc.setDrawColor(...GRAY_LINE).setLineWidth(0.3).rect(x, yImg, width, height, 'S');
         } catch {
           // Se saltea esta foto si el formato no es compatible.
         }
       });
-      y += cellHeight + 8;
+      state.y += cellHeight + 8;
     }
   }
 
-  // Ficha técnica en grilla
+  // Ficha técnica en grilla de "chips"
   const datos = [
     ['Tipo', property.type],
     ['Ambientes', property.rooms],
@@ -143,48 +210,54 @@ export async function generarFichaPDF(property) {
     ['Piso / Planta', property.floor || 'PB'],
     ['Condición', (!property.antiguedad) ? 'A Estrenar' : `${property.antiguedad} años`],
   ];
-
-  const colWidth = (pageWidth - margin * 2) / 4;
+  tituloSeccion(state, 'Ficha Técnica');
+  const filasDatos = Math.ceil(datos.length / 4);
+  asegurarEspacio(state, filasDatos * 15);
+  const colGap = 2;
+  const colWidth = (contentWidth - colGap * 3) / 4;
   datos.forEach(([etiqueta, valor], idx) => {
     const col = idx % 4;
     const fila = Math.floor(idx / 4);
-    filaFicha(doc, margin + col * colWidth, y + fila * 14, etiqueta, valor ?? '-');
+    filaFicha(state, MARGIN + col * (colWidth + colGap), state.y + fila * 15, etiqueta, valor ?? '-');
   });
-  y += Math.ceil(datos.length / 4) * 14 + 4;
-
-  // Servicios
-  const servicios = [];
-  if (property.services?.electricidad) servicios.push('Electricidad');
-  if (property.services?.gasNatural) servicios.push('Gas natural');
-  if (property.services?.cloaca) servicios.push('Cloaca');
-  if (servicios.length > 0) {
-    doc.setDrawColor(230, 230, 230).line(margin, y, pageWidth - margin, y);
-    y += 6;
-    doc.setFont('helvetica', 'bold').setFontSize(9).setTextColor(50, 50, 50);
-    doc.text('SERVICIOS DISPONIBLES', margin, y);
-    y += 5;
-    doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(70, 70, 70);
-    doc.text(sanitizeForPdf(servicios.join('   •   ')), margin, y);
-    y += 8;
-  }
+  state.y += filasDatos * 15 + 4;
 
   // Descripción (texto plano, sin las etiquetas HTML del editor ni emojis)
   const descripcionPlano = sanitizeForPdf(stripHtml(property.description || property.descripcion || ''));
   if (descripcionPlano) {
-    doc.setDrawColor(230, 230, 230).line(margin, y, pageWidth - margin, y);
-    y += 6;
-    doc.setFont('helvetica', 'bold').setFontSize(9).setTextColor(50, 50, 50);
-    doc.text('DESCRIPCIÓN', margin, y);
-    y += 5;
-    doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(60, 60, 60);
-    const lineas = doc.splitTextToSize(descripcionPlano, pageWidth - margin * 2);
-    doc.text(lineas, margin, y);
-    y += lineas.length * 4.5 + 4;
+    doc.setFont('helvetica', 'normal').setFontSize(9.5);
+    const lineas = doc.splitTextToSize(descripcionPlano, contentWidth);
+    tituloSeccion(state, 'Descripción');
+    asegurarEspacio(state, lineas.length * 4.6 + 4);
+    doc.setTextColor(60, 60, 60);
+    doc.text(lineas, MARGIN, state.y);
+    state.y += lineas.length * 4.6 + 6;
   }
 
-  // Pie de página
-  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(150, 150, 150);
-  doc.text('Somos Reformas — somosreformas.com.ar — +54 9 2257526756', margin, doc.internal.pageSize.getHeight() - 10);
+  // Ubicación + mapa (tiles oficiales de OSM combinados en canvas, gratis y sin API key)
+  if (property.latitud && property.longitud) {
+    try {
+      const mapDataUrl = await generarMapaEstatico(property.latitud, property.longitud, { width: 500, height: 260, zoom: 15 });
+      tituloSeccion(state, 'Ubicación');
+      const maxHeight = 55;
+      asegurarEspacio(state, maxHeight + 4);
+      const { width, height } = encajarEnCaja(500, 260, contentWidth, maxHeight);
+      const x = MARGIN + (contentWidth - width) / 2;
+      doc.addImage(mapDataUrl, 'PNG', x, state.y, width, height, undefined, 'FAST');
+      doc.setDrawColor(...GRAY_LINE).setLineWidth(0.3).rect(x, state.y, width, height, 'S');
+      state.y += maxHeight + 4;
+    } catch {
+      // Si el mapa no se pudo generar (sin red, tiles caídos), seguimos sin esa sección.
+    }
+  }
+
+  // Numeración de páginas (recién ahora que sabemos el total)
+  const totalPaginas = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPaginas; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(220, 220, 225);
+    doc.text(`Página ${i} de ${totalPaginas}`, state.pageWidth / 2, state.pageHeight - FOOTER_H / 2 + 1.5, { align: 'center' });
+  }
 
   const nombreArchivo = (property.slug || 'propiedad') + '.pdf';
   doc.save(nombreArchivo);
