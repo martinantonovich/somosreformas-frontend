@@ -69,9 +69,21 @@ function drawChrome(doc, pageWidth, pageHeight) {
   // Footer (el número de página se agrega al final, cuando ya sabemos el total)
   doc.setFillColor(...NAVY);
   doc.rect(0, pageHeight - FOOTER_H, pageWidth, FOOTER_H, 'F');
+  const footerY = pageHeight - FOOTER_H / 2 + 1.5;
   doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(220, 220, 225);
-  doc.text('somosreformas.com.ar', MARGIN, pageHeight - FOOTER_H / 2 + 1.5);
-  doc.text('+54 9 2257526756', pageWidth - MARGIN, pageHeight - FOOTER_H / 2 + 1.5, { align: 'right' });
+
+  // Sitio e Instagram como links reales, cada uno abre su propia URL al hacer click
+  let footerX = MARGIN;
+  const sitio = 'somosreformas.com.ar';
+  doc.textWithLink(sitio, footerX, footerY, { url: 'https://somosreformas.com.ar' });
+  footerX += doc.getTextWidth(sitio);
+  const separador = '   ·   ';
+  doc.text(separador, footerX, footerY);
+  footerX += doc.getTextWidth(separador);
+  const instagram = '@somosreformas';
+  doc.textWithLink(instagram, footerX, footerY, { url: 'https://www.instagram.com/somosreformas/' });
+
+  doc.text('+54 9 2257526756', pageWidth - MARGIN, footerY, { align: 'right' });
 
   // Marco + fondo crema del área de contenido, para que no sea solo blanco liso
   const frameY = HEADER_H + 4;
@@ -138,7 +150,7 @@ export async function generarFichaPDF(property) {
   if (fotoPrincipalUrl) {
     const foto = await urlToDataUrl(fotoPrincipalUrl);
     if (foto) {
-      const maxHeight = 80;
+      const maxHeight = 105;
       asegurarEspacio(state, maxHeight + 4);
       const { width, height } = encajarEnCaja(foto.width, foto.height, contentWidth, maxHeight);
       const x = MARGIN + (contentWidth - width) / 2;
@@ -179,7 +191,7 @@ export async function generarFichaPDF(property) {
   if (fotosSecundariasUrls.length > 0) {
     const fotos = (await Promise.all(fotosSecundariasUrls.map(urlToDataUrl))).filter(Boolean);
     if (fotos.length > 0) {
-      const cellHeight = 36;
+      const cellHeight = 46;
       asegurarEspacio(state, cellHeight + 6);
       const gap = 3;
       const cellWidth = (contentWidth - gap * (fotos.length - 1)) / fotos.length;
@@ -229,7 +241,7 @@ export async function generarFichaPDF(property) {
     const lineas = doc.splitTextToSize(descripcionPlano, contentWidth);
     tituloSeccion(state, 'Descripción');
     asegurarEspacio(state, lineas.length * 4.6 + 4);
-    doc.setTextColor(60, 60, 60);
+    doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(60, 60, 60);
     doc.text(lineas, MARGIN, state.y);
     state.y += lineas.length * 4.6 + 6;
   }
