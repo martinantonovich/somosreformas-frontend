@@ -21,6 +21,9 @@ export default function App() {
   // Arrancamos con el estado de propiedades vacío ([]) esperando al backend
   const [properties, setProperties] = useState([]);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // Cotización del dólar (editable desde el admin) para comparar Venta -USD- contra
+  // Alquiler -ARS- por su valor real al ordenar/filtrar. 1500 es el default hasta que cargue.
+  const [cotizacionDolar, setCotizacionDolar] = useState(1500);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   // 🧭 Mapeo único entre pantallas y URLs, usado tanto para navegar como para leer la URL
@@ -77,6 +80,16 @@ export default function App() {
       return;
     }
     if (viewFromPath && viewFromPath !== 'home') setView(viewFromPath);
+  }, []);
+
+  // 💵 Traemos la cotización del dólar configurada desde el admin
+  useEffect(() => {
+    fetch(`${apiUrl}/api/configuracion`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.cotizacionDolar) setCotizacionDolar(parseFloat(data.cotizacionDolar));
+      })
+      .catch(error => console.error('Error cargando la configuración:', error));
   }, []);
 
   // 🔌 CONEXIÓN AL BACKEND: Traemos las propiedades reales al cargar la app
@@ -169,7 +182,8 @@ export default function App() {
             calefaccion: prop.calefaccion,
             sistemaAgua: prop.sistemaAgua,
             estadoReforma: prop.estadoReforma || null,
-            estadoPropiedad: prop.estadoPropiedad || null
+            estadoPropiedad: prop.estadoPropiedad || null,
+            orden: prop.orden ?? null
           };
         });
 
@@ -265,6 +279,7 @@ export default function App() {
           navigateToDetail={navigateToDetail}
           enProcesoCount={reformasEnProceso.length}
           navigateToReformas={navigateToReformas}
+          cotizacionDolar={cotizacionDolar}
         />
       )}
 
@@ -297,6 +312,8 @@ export default function App() {
             properties={properties}
             navigateTo={navigateTo}
             triggerToast={triggerToast}
+            cotizacionDolar={cotizacionDolar}
+            setCotizacionDolar={setCotizacionDolar}
           />
         </Suspense>
       )}

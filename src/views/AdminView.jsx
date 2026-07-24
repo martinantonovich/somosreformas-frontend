@@ -3,15 +3,43 @@ import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropi
 import RichTextEditor from '../components/RichTextEditor';
 import { isVideoUrl } from '../utils/media';
 
-export default function AdminView({ setProperties, properties, navigateTo, triggerToast }) {
+export default function AdminView({ setProperties, properties, navigateTo, triggerToast, cotizacionDolar, setCotizacionDolar }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
+
+  // 💵 Cotización del dólar (para comparar Venta -USD- contra Alquiler -ARS- por su valor real)
+  const [cotizacionInput, setCotizacionInput] = useState(String(cotizacionDolar ?? 1500));
+  const [guardandoCotizacion, setGuardandoCotizacion] = useState(false);
+  useEffect(() => {
+    setCotizacionInput(String(cotizacionDolar ?? 1500));
+  }, [cotizacionDolar]);
+
+  const handleGuardarCotizacion = () => {
+    const valor = parseFloat(cotizacionInput);
+    if (!valor || valor <= 0) {
+      triggerToast('Ingresá un valor de cotización válido.', 'error');
+      return;
+    }
+    setGuardandoCotizacion(true);
+    fetch(`${apiUrl}/api/configuracion`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cotizacionDolar: valor })
+    })
+      .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+      .then(() => {
+        setCotizacionDolar?.(valor);
+        triggerToast('Cotización actualizada.', 'success');
+      })
+      .catch(() => triggerToast('No se pudo guardar la cotización.', 'error'))
+      .finally(() => setGuardandoCotizacion(false));
+  };
 
   useEffect(() => {
     const loggedUser = localStorage.getItem('reformas_admin_session');
@@ -27,6 +55,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     operation: 'Venta',     // 'Venta', 'Alquiler' o 'No Disponible'
     estadoReforma: '',      // '', 'EN_PROCESO' o 'REALIZADA' (independiente de operation)
     estadoPropiedad: '',    // '', 'RESERVADO', 'EN_NEGOCIACION', 'VENDIDO' o 'ALQUILADO' (cartel comercial)
+    orden: '',              // Prioridad manual para el orden "Destacados" en la home (menor = primero)
     type: 'Departamento',
     address: '', 
     latitud: '', 
@@ -259,6 +288,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       historiaReforma: newProp.estadoReforma ? newProp.reformStory : '',
       estadoReforma: newProp.estadoReforma || null,
       estadoPropiedad: newProp.estadoPropiedad || null,
+      orden: newProp.orden !== '' && newProp.orden !== null && newProp.orden !== undefined ? parseInt(newProp.orden) : null,
       imagenes: imagenesPayload,
       comparables: comparablesPayload
     };
@@ -354,7 +384,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         calefaccion: savedProperty.calefaccion,
         sistemaAgua: savedProperty.sistemaAgua,
         estadoReforma: savedProperty.estadoReforma || null,
-        estadoPropiedad: savedProperty.estadoPropiedad || null
+        estadoPropiedad: savedProperty.estadoPropiedad || null,
+        orden: savedProperty.orden ?? null
       };
 
       if (isEditing) {
@@ -443,6 +474,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       operation: prop.operation || 'Venta', // Garantiza leer el formato de App.jsx
       estadoReforma: prop.estadoReforma || '',
       estadoPropiedad: prop.estadoPropiedad || '',
+      orden: prop.orden ?? '',
       type: prop.type || 'Departamento',
       address: prop.direccion || '',
       latitud: prop.latitud ? prop.latitud.toString() : '',
@@ -547,8 +579,27 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
             </form>
           </div>
         ) : (
+          <>
+          {/* 💵 Cotización del dólar: para comparar Venta (USD) contra Alquiler (ARS) por su valor real */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+            <label className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Cotización del Dólar (ARS)</label>
+            <input
+              type="number" step="0.01" value={cotizacionInput}
+              onChange={(e) => setCotizacionInput(e.target.value)}
+              className="w-32 bg-slate-950 border border-slate-800 rounded-lg p-2 text-white text-sm font-mono"
+            />
+            <button
+              onClick={handleGuardarCotizacion}
+              disabled={guardandoCotizacion}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs uppercase"
+            >
+              {guardandoCotizacion ? 'Guardando...' : 'Guardar'}
+            </button>
+            <span className="text-[10px] text-slate-500">Se usa para ordenar y filtrar por precio real entre propiedades en USD y ARS.</span>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-            
+
             {/* 🛠️ FORMULARIO DE CARGA/EDICIÓN */}
             <div className="lg:col-span-1 bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xl space-y-4 h-fit">
               <h3 className="font-extrabold text-white text-xs uppercase tracking-wider border-b border-slate-800 pb-2 m-0">
@@ -578,13 +629,23 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                 </div>
 
                 {/* Cartel comercial: Reservado / En Negociación / Vendido / Alquilado */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Cartel</label>
-                  <select value={newProp.estadoPropiedad || ''} onChange={(e) => setNewProp({...newProp, estadoPropiedad: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
-                    {ESTADOS_PROPIEDAD.map(estado => (
-                      <option key={estado.value} value={estado.value}>{estado.label}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Cartel</label>
+                    <select value={newProp.estadoPropiedad || ''} onChange={(e) => setNewProp({...newProp, estadoPropiedad: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
+                      {ESTADOS_PROPIEDAD.map(estado => (
+                        <option key={estado.value} value={estado.value}>{estado.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Orden Destacados</label>
+                    <input
+                      type="number" placeholder="Ej: 1" value={newProp.orden}
+                      onChange={(e) => setNewProp({...newProp, orden: e.target.value})}
+                      className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1035,6 +1096,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
             </div>
 
           </div>
+          </>
         )}
       </div>
     </main>

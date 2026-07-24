@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import { stripHtml } from '../utils/richText';
 import { isVideoUrl } from '../utils/media';
+import { valorRealUsd } from '../utils/precio';
 
 const PAGE_SIZE = 9;
 
@@ -131,13 +132,14 @@ function PropertyCard({ property, navigateToDetail }) {
   );
 }
 
-export default function HomeView({ properties, navigateToDetail, enProcesoCount = 0, navigateToReformas }) {
+export default function HomeView({ properties, navigateToDetail, enProcesoCount = 0, navigateToReformas, cotizacionDolar = 1500 }) {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterOperation, setFilterOperation] = useState('');
   const [filterRooms, setFilterRooms] = useState('');
   const [filterMaxPrice, setFilterMaxPrice] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState('destacados');
 
   const filteredProperties = useMemo(() => {
     return properties.filter(prop => {
@@ -145,18 +147,33 @@ export default function HomeView({ properties, navigateToDetail, enProcesoCount 
       const matchType = filterType === '' || prop.type === filterType;
       const matchOp = filterOperation === '' || prop.operation === filterOperation;
       const matchRooms = filterRooms === '' || prop.rooms === parseInt(filterRooms);
-      const matchPrice = filterMaxPrice === '' || (prop.price ?? 0) <= parseInt(filterMaxPrice);
+      // Comparamos por valor real en USD, no por el número duro: así un alquiler en ARS
+      // no queda mal comparado contra una venta en USD.
+      const matchPrice = filterMaxPrice === '' || valorRealUsd(prop, cotizacionDolar) <= parseInt(filterMaxPrice);
       return matchLoc && matchType && matchOp && matchRooms && matchPrice;
     });
-  }, [properties, filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice]);
+  }, [properties, filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice, cotizacionDolar]);
 
-  // Si cambian los filtros (o el resultado encoge), volvemos siempre a la página 1
+  const sortedProperties = useMemo(() => {
+    const lista = [...filteredProperties];
+    if (sortOrder === 'precio_desc') {
+      lista.sort((a, b) => valorRealUsd(b, cotizacionDolar) - valorRealUsd(a, cotizacionDolar));
+    } else if (sortOrder === 'precio_asc') {
+      lista.sort((a, b) => valorRealUsd(a, cotizacionDolar) - valorRealUsd(b, cotizacionDolar));
+    } else {
+      // Destacados: por el orden manual que carga el admin (menor número primero); sin orden asignado, al final.
+      lista.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
+    }
+    return lista;
+  }, [filteredProperties, sortOrder, cotizacionDolar]);
+
+  // Si cambian los filtros o el orden (o el resultado encoge), volvemos siempre a la página 1
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice]);
+  }, [filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice, sortOrder]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProperties.length / PAGE_SIZE));
-  const paginatedProperties = filteredProperties.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(sortedProperties.length / PAGE_SIZE));
+  const paginatedProperties = sortedProperties.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const irAPagina = (pagina) => {
     setCurrentPage(pagina);
@@ -237,7 +254,7 @@ export default function HomeView({ properties, navigateToDetail, enProcesoCount 
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Precio Máx</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Precio Máx (USD aprox.)</label>
               <input
                 type="number" placeholder="Monto máximo..." value={filterMaxPrice}
                 onChange={(e) => setFilterMaxPrice(e.target.value)}
@@ -274,12 +291,26 @@ export default function HomeView({ properties, navigateToDetail, enProcesoCount 
 
       {/* CATÁLOGO DE PROPIEDADES */}
       <section id="catalogo-propiedades" className="max-w-6xl mx-auto px-4 py-16">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 border-b border-neutral-100 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 border-b border-neutral-100 pb-5 gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-950 uppercase tracking-wider">Unidades</h2>
           </div>
-          <div className="text-xs font-semibold text-slate-600 mt-2 sm:mt-0">
-            Mostrando <span className="text-orange-600 font-black">{filteredProperties.length}</span> hogares a estrenar
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="text-xs font-semibold text-slate-600">
+              Mostrando <span className="text-orange-600 font-black">{filteredProperties.length}</span> hogares a estrenar
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Ordenar por</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="bg-neutral-50 border border-neutral-200 rounded-lg py-1.5 px-2 text-xs text-slate-700 font-bold"
+              >
+                <option value="destacados">Destacados</option>
+                <option value="precio_desc">Precio: mayor a menor</option>
+                <option value="precio_asc">Precio: menor a mayor</option>
+              </select>
+            </div>
           </div>
         </div>
 
