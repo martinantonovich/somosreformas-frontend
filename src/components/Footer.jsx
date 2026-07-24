@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Footer({ navigateTo, triggerToast }) {
+export default function Footer({ navigateTo, triggerToast, navigateToReformas }) {
   const [footerContact, setFooterContact] = useState({
     nombre: '',
     apellido: '',
@@ -75,10 +75,18 @@ export default function Footer({ navigateTo, triggerToast }) {
           <div className="text-xs space-y-2 text-slate-400 font-medium">
             <p>📍 La Plata, Buenos Aires</p>
             <p>📍 La Costa, Buenos Aires</p>
-            
+
             <p>✉ reformassomos@gmail.com</p>
             <p>📞 +54 9 2257526756</p>
           </div>
+
+          <div className="text-xs space-y-1.5 font-bold uppercase tracking-wider">
+            <button onClick={() => navigateTo('home')} className="block text-slate-400 hover:text-orange-500 transition">Propiedades Disponibles</button>
+            <button onClick={() => navigateToReformas?.('enProceso')} className="block text-amber-500 hover:text-amber-400 transition">🚧 Obras en Proceso</button>
+            <button onClick={() => navigateToReformas?.('realizadas')} className="block text-slate-400 hover:text-orange-500 transition">Reformas Realizadas</button>
+            <button onClick={() => navigateTo('cotizador')} className="block text-slate-400 hover:text-orange-500 transition">Cotizá tu Reforma</button>
+          </div>
+
           <p className="text-[10px] text-slate-700">
             <span
               onClick={() => { navigateTo('admin'); triggerToast("Accediendo al panel administrativo.", "info"); }}

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { stripHtml } from '../utils/richText';
 
-export default function ReformasView({ enProceso, realizadas, navigateToDetail }) {
-  const [activeTab, setActiveTab] = useState('realizadas');
+export default function ReformasView({ enProceso, realizadas, navigateToDetail, initialTab }) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'realizadas');
 
   const displayedProperties = activeTab === 'realizadas' ? realizadas : enProceso;
 

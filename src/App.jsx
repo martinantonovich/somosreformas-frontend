@@ -242,6 +242,14 @@ export default function App() {
 
   const navigateToDetail = (property) => navigateTo('detail', property);
 
+  // 🚧 Acceso directo a la pestaña "En Proceso" de Reformas desde otros lugares del sitio
+  // (banner de la home, footer), sin que el usuario tenga que entrar y buscar la pestaña.
+  const [reformasTab, setReformasTab] = useState('realizadas');
+  const navigateToReformas = (tab = 'realizadas') => {
+    setReformasTab(tab);
+    navigateTo('reformas');
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 text-slate-800 font-sans flex flex-col">
       {/* 💻 Simulador de navegador */}
@@ -252,11 +260,22 @@ export default function App() {
 
       {/* 🔀 Enrutador Dinámico de Vistas */}
       {view === 'home' && (
-        <HomeView properties={saleRentProperties} navigateToDetail={navigateToDetail} />
+        <HomeView
+          properties={saleRentProperties}
+          navigateToDetail={navigateToDetail}
+          enProcesoCount={reformasEnProceso.length}
+          navigateToReformas={navigateToReformas}
+        />
       )}
 
       {view === 'reformas' && (
-        <ReformasView enProceso={reformasEnProceso} realizadas={reformasRealizadas} navigateToDetail={navigateToDetail} />
+        <ReformasView
+          key={reformasTab}
+          initialTab={reformasTab}
+          enProceso={reformasEnProceso}
+          realizadas={reformasRealizadas}
+          navigateToDetail={navigateToDetail}
+        />
       )}
 
       {view === 'cotizador' && (
@@ -287,7 +306,7 @@ export default function App() {
       )}
 
       {/* ✉️ Footer con Formulario */}
-      <Footer navigateTo={navigateTo} triggerToast={triggerToast} />
+      <Footer navigateTo={navigateTo} triggerToast={triggerToast} navigateToReformas={navigateToReformas} />
 
       {/* 🍪 Aviso de cookies (se muestra una sola vez, sobre cualquier pantalla) */}
       <CookieBanner navigateTo={navigateTo} />

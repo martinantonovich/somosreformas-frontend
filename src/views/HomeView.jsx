@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import { stripHtml } from '../utils/richText';
 
-export default function HomeView({ properties, navigateToDetail }) {
+export default function HomeView({ properties, navigateToDetail, enProcesoCount = 0, navigateToReformas }) {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterOperation, setFilterOperation] = useState('');
@@ -104,6 +104,30 @@ export default function HomeView({ properties, navigateToDetail }) {
           </div>
         </div>
       </section>
+
+      {/* 🚧 BANNER: acceso directo a las obras en proceso, que de otro modo quedan escondidas
+          detrás de Reformas → pestaña "En Proceso" */}
+      {enProcesoCount > 0 && navigateToReformas && (
+        <section className="max-w-6xl mx-auto px-4 mt-10">
+          <button
+            onClick={() => navigateToReformas('enProceso')}
+            className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-950 hover:bg-slate-900 border border-amber-500/30 rounded-2xl px-6 py-5 text-left transition group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🚧</span>
+              <div>
+                <p className="text-white font-extrabold text-sm">
+                  Tenemos {enProcesoCount} {enProcesoCount === 1 ? 'obra en proceso' : 'obras en proceso'} ahora mismo
+                </p>
+                <p className="text-slate-400 text-xs">Mirá el avance semana a semana, antes de que salgan a la venta.</p>
+              </div>
+            </div>
+            <span className="shrink-0 bg-amber-500 text-slate-950 text-xs font-extrabold uppercase px-4 py-2 rounded-full group-hover:bg-amber-400 transition">
+              Ver obras en proceso ➔
+            </span>
+          </button>
+        </section>
+      )}
 
       {/* CATÁLOGO DE PROPIEDADES */}
       <section id="catalogo-propiedades" className="max-w-6xl mx-auto px-4 py-16">

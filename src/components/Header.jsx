@@ -20,7 +20,7 @@ export default function Header({ navigateTo, view }) {
     {
       key: 'reformas',
       shortLabel: 'Reformas',
-      fullLabel: 'Reformas Realizadas',
+      fullLabel: 'Nuestras Reformas',
       active: view === 'reformas',
       onClick: () => navigateTo('reformas'),
     },
