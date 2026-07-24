@@ -160,6 +160,7 @@ export default function App() {
             sizeSemiCovered: prop.m2Semicubiertos || 0,
             sizeUncovered: prop.m2Descubiertos || 0,
             floor: prop.pisoPlanta || 'PB',
+            expensas: prop.expensas ?? 0,
             bankEligible: prop.aptoBanco ? 'Sí' : 'No',
             direccion: prop.direccion,
             description: prop.descripcion,

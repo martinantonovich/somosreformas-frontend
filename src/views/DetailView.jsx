@@ -195,8 +195,13 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
             <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
               <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
               <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
-                USD {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
+                {selectedProperty.operation === 'Venta' ? 'USD' : 'ARS'} {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
               </span>
+              {selectedProperty.operation === 'Alquiler' && selectedProperty.expensas > 0 && (
+                <span className="text-[10px] text-slate-500 font-bold">
+                  + Expensas ARS {selectedProperty.expensas.toLocaleString('es-AR')}
+                </span>
+              )}
             </div>
           ) : isEnProceso ? (
             <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">

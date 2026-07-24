@@ -1,4 +1,4 @@
-import { stripHtml } from './richText';
+import { htmlToPlainTextConSaltos } from './richText';
 import { isVideoUrl } from './media';
 import { generarMapaEstatico } from './osmMap';
 
@@ -175,7 +175,10 @@ export async function generarFichaPDF(property) {
 
   if (property.operation !== 'No Disponible') {
     const moneda = property.operation === 'Venta' ? 'USD' : 'ARS';
-    const texto = sanitizeForPdf(`${property.operation} — ${moneda} ${(property.price ?? 0).toLocaleString('es-AR')}`);
+    const expensasTexto = property.operation === 'Alquiler' && property.expensas > 0
+      ? ` + Expensas ARS ${property.expensas.toLocaleString('es-AR')}`
+      : '';
+    const texto = sanitizeForPdf(`${property.operation} — ${moneda} ${(property.price ?? 0).toLocaleString('es-AR')}${expensasTexto}`);
     doc.setFont('helvetica', 'bold').setFontSize(12);
     const anchoTexto = doc.getTextWidth(texto);
     doc.setFillColor(...ORANGE);
@@ -235,7 +238,7 @@ export async function generarFichaPDF(property) {
   state.y += filasDatos * 15 + 4;
 
   // Descripción (texto plano, sin las etiquetas HTML del editor ni emojis)
-  const descripcionPlano = sanitizeForPdf(stripHtml(property.description || property.descripcion || ''));
+  const descripcionPlano = sanitizeForPdf(htmlToPlainTextConSaltos(property.description || property.descripcion || ''));
   if (descripcionPlano) {
     doc.setFont('helvetica', 'normal').setFontSize(9.5);
     const lineas = doc.splitTextToSize(descripcionPlano, contentWidth);

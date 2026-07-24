@@ -1,8 +1,26 @@
-// Quita las etiquetas HTML para mostrar un resumen en texto plano (cards del listado).
-// Los textos viejos ya eran texto plano, así que esto no les cambia nada.
+// Quita las etiquetas HTML para mostrar un resumen en texto plano de una sola línea
+// (cards del listado, con line-clamp). Los textos viejos ya eran texto plano, así que
+// esto no les cambia nada.
 export function stripHtml(html) {
   if (!html) return '';
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Igual que stripHtml, pero para texto plano MULTILÍNEA (ej. el PDF de la ficha): conserva
+// los saltos entre párrafos/subtítulos/ítems de lista en vez de aplastar todo en una sola
+// línea corrida sin puntuación.
+export function htmlToPlainTextConSaltos(html) {
+  if (!html) return '';
+  return html
+    .replace(/<\/(p|h1|h2|h3|h4|div)>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // Clases Tailwind (variantes arbitrarias) para que el HTML enriquecido (negrita, subtítulos, listas)

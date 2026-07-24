@@ -362,6 +362,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         sizeSemiCovered: savedProperty.m2Semicubiertos || savedProperty.sizeSemiCovered || 0,
         sizeUncovered: savedProperty.m2Descubiertos || savedProperty.sizeUncovered || 0,
         floor: savedProperty.pisoPlanta || savedProperty.floor || 'PB',
+        expensas: savedProperty.expensas ?? 0,
         bankEligible: savedProperty.aptoBanco === true || savedProperty.bankEligible === 'Sí' ? 'Sí' : 'No',
         direccion: savedProperty.direccion || savedProperty.address,
         description: savedProperty.descripcion || savedProperty.description,
