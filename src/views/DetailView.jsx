@@ -219,6 +219,35 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
     );
   };
 
+  // 💬 Caja de contacto/WhatsApp. `apilada` = true cuando va debajo del showcase de obra a todo
+  // el ancho (en vez de al costado de la galería), así se acomoda como una barra horizontal.
+  const renderContactBox = (apilada) => (
+    <div className={`bg-white border border-neutral-100 p-4 sm:p-6 rounded-2xl shadow-sm w-full ${apilada ? 'sm:flex sm:items-center sm:gap-6' : 'flex flex-col justify-between'}`}>
+      <div className="space-y-3 sm:flex-1">
+        <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">
+          {isEnProceso ? '✦ Consultános sobre esta obra' : isReforma ? '✦ ¿Querés algo similar?' : '✦ Asesoramiento Inmediato'}
+        </span>
+        <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
+          <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
+          <p className="bg-white p-2.5 rounded border border-neutral-200/50 leading-relaxed font-mono italic text-slate-500 line-clamp-3 sm:line-clamp-4 m-0">
+            "{getWhatsAppMessage(selectedProperty)}"
+          </p>
+        </div>
+      </div>
+      <div className={`space-y-2 mt-4 ${apilada ? 'sm:mt-0 sm:w-64 sm:shrink-0' : 'sm:mt-6'}`}>
+        <button onClick={handleWhatsAppRedirect} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm active:scale-[0.98]">
+          <span>Consultar por WhatsApp</span>
+        </button>
+        <button onClick={handleCopyLink} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98]">
+          🔗 Enlace de la ficha
+        </button>
+        <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait">
+          {isGeneratingPdf ? 'Generando PDF...' : '📄 Descargar ficha en PDF'}
+        </button>
+      </div>
+    </div>
+  );
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   console.log("Coordenadas detectadas en Detalle:", latitud, longitud);
   return (
@@ -325,97 +354,74 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
         </div>
 
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 space-y-3 flex flex-col justify-between">
-
-            {mostrarObraArriba ? (
-              /* 🚧 Propiedad en obra (todavía no publicada): en vez de la galería, mostramos acá
-                 arriba de todo la documentación Antes/Durante/Actual, para que se note de entrada
-                 que esto es distinto a una propiedad disponible. */
-              <div className="bg-slate-950 rounded-2xl border-2 border-amber-600/50 shadow-md p-4 sm:p-5">
-                <div className="mb-4">
-                  <h2 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">
-                    {isEnProceso ? '🚧 Avance de la Obra' : '📐 Documentación de la Reforma'}
-                  </h2>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {isEnProceso
-                      ? 'Así va progresando cada ambiente, en tiempo real: antes, durante y estado actual.'
-                      : 'Así fue el proceso de esta reforma: antes, durante y resultado final.'}
-                  </p>
-                </div>
-                {renderObraShowcase()}
-              </div>
-            ) : (
-              <>
-                {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
-                <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
-                  {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
-                    <video
-                      src={selectedProperty.gallery[currentGalleryIndex]}
-                      controls
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <img
-                      src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
-                      alt="Propiedad"
-                      className="w-full h-full object-contain cursor-zoom-in"
-                      onClick={() => setIsModalOpen(true)}
-                    />
-                  )}
-                  {selectedProperty.gallery?.length > 1 && (
-                    <>
-                      <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
-                      <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❯</button>
-                      <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full z-10">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Carrusel de miniaturas */}
-                {selectedProperty.gallery?.length > 1 && (
-                  <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
-                    {selectedProperty.gallery.map((img, idx) => (
-                      <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
-                        {isVideoUrl(img) ? (
-                          <video src={img} preload="metadata" className="w-full h-full object-cover" />
-                        ) : (
-                          <img src={img} alt="Mini" className="w-full h-full object-cover" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Caja de Contacto */}
-          <div className="bg-white border border-neutral-100 p-4 sm:p-6 rounded-2xl shadow-sm flex flex-col justify-between w-full">
-            <div className="space-y-3">
-              <span className="text-[10px] font-extrabold text-emerald-600 block uppercase tracking-wider">
-                {isEnProceso ? '✦ Consultános sobre esta obra' : isReforma ? '✦ ¿Querés algo similar?' : '✦ Asesoramiento Inmediato'}
-              </span>
-              <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100 text-[11px] text-slate-600">
-                <span className="text-[9px] font-extrabold text-emerald-600 block uppercase mb-1">💬 WhatsApp Directo:</span>
-                <p className="bg-white p-2.5 rounded border border-neutral-200/50 leading-relaxed font-mono italic text-slate-500 line-clamp-3 sm:line-clamp-4 m-0">
-                  "{getWhatsAppMessage(selectedProperty)}"
+        {mostrarObraArriba ? (
+          /* 🚧 Propiedad en obra (todavía no publicada): el showcase Antes/Durante/Actual ocupa
+             todo el ancho para que las 3 columnas se vean grandes, y la caja de contacto queda
+             debajo como una barra horizontal, en vez de ir apretada al costado. */
+          <div className="space-y-4 mb-6">
+            <div className="bg-slate-950 rounded-2xl border-2 border-amber-600/50 shadow-md p-4 sm:p-5 w-full">
+              <div className="mb-4">
+                <h2 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">
+                  {isEnProceso ? '🚧 Avance de la Obra' : '📐 Documentación de la Reforma'}
+                </h2>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {isEnProceso
+                    ? 'Así va progresando cada ambiente, en tiempo real: antes, durante y estado actual.'
+                    : 'Así fue el proceso de esta reforma: antes, durante y resultado final.'}
                 </p>
               </div>
+              {renderObraShowcase()}
             </div>
-            <div className="space-y-2 mt-4 sm:mt-6">
-              <button onClick={handleWhatsAppRedirect} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm active:scale-[0.98]">
-                <span>Consultar por WhatsApp</span>
-              </button>
-              <button onClick={handleCopyLink} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98]">
-                🔗 Enlace de la ficha
-              </button>
-              <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full bg-neutral-100 hover:bg-neutral-200 text-slate-700 py-2 rounded-lg text-xs font-bold text-center transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait">
-                {isGeneratingPdf ? 'Generando PDF...' : '📄 Descargar ficha en PDF'}
-              </button>
-            </div>
+
+            {renderContactBox(true)}
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2 space-y-3 flex flex-col justify-between">
+              {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
+              <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
+                {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
+                  <video
+                    src={selectedProperty.gallery[currentGalleryIndex]}
+                    controls
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <img
+                    src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
+                    alt="Propiedad"
+                    className="w-full h-full object-contain cursor-zoom-in"
+                    onClick={() => setIsModalOpen(true)}
+                  />
+                )}
+                {selectedProperty.gallery?.length > 1 && (
+                  <>
+                    <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
+                    <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❯</button>
+                    <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full z-10">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
+                  </>
+                )}
+              </div>
+
+              {/* Carrusel de miniaturas */}
+              {selectedProperty.gallery?.length > 1 && (
+                <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
+                  {selectedProperty.gallery.map((img, idx) => (
+                    <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
+                      {isVideoUrl(img) ? (
+                        <video src={img} preload="metadata" className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={img} alt="Mini" className="w-full h-full object-cover" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {renderContactBox(false)}
+          </div>
+        )}
 
         {/* BLOQUE 2: FICHA TÉCNICA EXTENDIDA Y MAPA REAL */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
