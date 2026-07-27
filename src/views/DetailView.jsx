@@ -28,6 +28,11 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const isRealizada = selectedProperty.estadoReforma === 'REALIZADA';
   const isReforma = isEnProceso || isRealizada;
   const isComercial = selectedProperty.operation === 'Venta' || selectedProperty.operation === 'Alquiler';
+  // 🚧 Mientras la obra no está en venta/alquiler (en proceso, o realizada pero sin publicar todavía),
+  // mostramos la documentación Antes/Durante/Actual arriba, en el lugar de la galería normal —
+  // así se distingue claramente de una ficha de propiedad disponible. Al publicarla (isComercial),
+  // vuelve al formato original y esta documentación pasa a la sección "Obras Realizadas" más abajo.
+  const mostrarObraArriba = isReforma && !isComercial && selectedProperty.comparables?.length > 0;
   const estadoPropiedadBadge = getEstadoPropiedadBadge(selectedProperty.estadoPropiedad);
   // 🔋 Mapeo dinámico de servicios directo de la base de datos unificada
   const listaServicios = [];
@@ -123,6 +128,95 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  // 🎠 Tabs por ambiente + las 3 columnas (Antes/Durante/Actual) con su mini-carrusel cada una.
+  // Se usa tanto arriba (obra en curso / recién realizada) como en "Obras Realizadas" más abajo.
+  const renderObraShowcase = () => {
+    const activeComp = selectedProperty.comparables[activeComparableIndex];
+    const columnas = [
+      { key: 'antes', label: 'Antes', badge: 'bg-amber-600', media: activeComp.antesMedia || [], caption: activeComp.descripcionAntes, vacio: 'Aún no hay fotos del estado inicial.' },
+      { key: 'durante', label: 'Durante', badge: 'bg-orange-600', media: activeComp.duranteMedia || [], caption: activeComp.descripcionDurante, vacio: 'Todavía no hay avance cargado.' },
+      { key: 'actual', label: 'Actual', badge: 'bg-emerald-600', media: activeComp.actualMedia || [], caption: activeComp.descripcionActual, vacio: 'Todavía no hay fotos del estado actual.' }
+    ];
+
+    return (
+      <>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {selectedProperty.comparables.map((comp, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveComparableIndex(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeComparableIndex === idx ? 'bg-orange-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
+              }`}
+            >
+              {comp.spaceName}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {columnas.map(col => {
+            const carouselKey = `${activeComparableIndex}-${col.key}`;
+            const idx = getCarouselIdx(carouselKey, col.media.length);
+            const item = col.media[idx];
+
+            return (
+              <div key={col.key}>
+                <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-video">
+                  {item ? (
+                    <>
+                      {item.tipo === 'video' ? (
+                        <video src={item.url} controls className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={item.url} alt={col.label} className="w-full h-full object-cover" />
+                      )}
+                      {col.media.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => stepCarousel(carouselKey, col.media.length, -1)}
+                            className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => stepCarousel(carouselKey, col.media.length, 1)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                          >
+                            ›
+                          </button>
+                          <span className="absolute right-1.5 bottom-1.5 z-20 bg-slate-950/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
+                            {idx + 1}/{col.media.length}
+                          </span>
+                        </>
+                      )}
+                      <span className={`absolute left-2 top-2 z-20 ${col.badge} text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none`}>
+                        {col.label}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-600 text-[10px] text-center px-3">
+                      {col.vacio}
+                    </div>
+                  )}
+                </div>
+                {item?.descripcion && (
+                  <p className="text-[10px] text-slate-400 mt-1 italic leading-relaxed">{item.descripcion}</p>
+                )}
+                {col.caption && (
+                  <p className="mt-2 bg-slate-900/50 p-2 rounded-lg text-[11px] text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
+                    📌 {col.caption}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -233,45 +327,66 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
         {/* BLOQUE 1: FOTOS Y PANEL DE CONTACTO */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2 space-y-3 flex flex-col justify-between">
-            
-            {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
-            <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
-              {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
-                <video
-                  src={selectedProperty.gallery[currentGalleryIndex]}
-                  controls
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <img
-                  src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
-                  alt="Propiedad"
-                  className="w-full h-full object-contain cursor-zoom-in"
-                  onClick={() => setIsModalOpen(true)}
-                />
-              )}
-              {selectedProperty.gallery?.length > 1 && (
-                <>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
-                  <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❯</button>
-                  <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full z-10">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
-                </>
-              )}
-            </div>
 
-            {/* Carrusel de miniaturas */}
-            {selectedProperty.gallery?.length > 1 && (
-              <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
-                {selectedProperty.gallery.map((img, idx) => (
-                  <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
-                    {isVideoUrl(img) ? (
-                      <video src={img} preload="metadata" className="w-full h-full object-cover" />
-                    ) : (
-                      <img src={img} alt="Mini" className="w-full h-full object-cover" />
-                    )}
-                  </button>
-                ))}
+            {mostrarObraArriba ? (
+              /* 🚧 Propiedad en obra (todavía no publicada): en vez de la galería, mostramos acá
+                 arriba de todo la documentación Antes/Durante/Actual, para que se note de entrada
+                 que esto es distinto a una propiedad disponible. */
+              <div className="bg-slate-950 rounded-2xl border-2 border-amber-600/50 shadow-md p-4 sm:p-5">
+                <div className="mb-4">
+                  <h2 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">
+                    {isEnProceso ? '🚧 Avance de la Obra' : '📐 Documentación de la Reforma'}
+                  </h2>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {isEnProceso
+                      ? 'Así va progresando cada ambiente, en tiempo real: antes, durante y estado actual.'
+                      : 'Así fue el proceso de esta reforma: antes, durante y resultado final.'}
+                  </p>
+                </div>
+                {renderObraShowcase()}
               </div>
+            ) : (
+              <>
+                {/* 📸 CARRUSEL PRINCIPAL INTELIGENTE: Controla fotos verticales y horizontales de forma automatizada */}
+                <div className="bg-slate-950 rounded-2xl border border-neutral-900 overflow-hidden shadow-md relative aspect-[4/3] sm:aspect-[16/9] w-full flex items-center justify-center">
+                  {isVideoUrl(selectedProperty.gallery?.[currentGalleryIndex]) ? (
+                    <video
+                      src={selectedProperty.gallery[currentGalleryIndex]}
+                      controls
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={selectedProperty.gallery?.[currentGalleryIndex] || selectedProperty.coverImage}
+                      alt="Propiedad"
+                      className="w-full h-full object-contain cursor-zoom-in"
+                      onClick={() => setIsModalOpen(true)}
+                    />
+                  )}
+                  {selectedProperty.gallery?.length > 1 && (
+                    <>
+                      <button onClick={() => setCurrentGalleryIndex(prev => prev === 0 ? selectedProperty.gallery.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❮</button>
+                      <button onClick={() => setCurrentGalleryIndex(prev => prev === selectedProperty.gallery.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-slate-800 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shadow-md text-xs font-bold hover:bg-white active:scale-95 z-10">❯</button>
+                      <span className="absolute bottom-3 right-3 bg-slate-950/80 text-white text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-full z-10">{currentGalleryIndex + 1} de {selectedProperty.gallery.length} fotos</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Carrusel de miniaturas */}
+                {selectedProperty.gallery?.length > 1 && (
+                  <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin">
+                    {selectedProperty.gallery.map((img, idx) => (
+                      <button key={idx} onClick={() => setCurrentGalleryIndex(idx)} className={`relative flex-shrink-0 w-14 h-10 sm:w-16 sm:h-12 rounded-lg overflow-hidden border-2 transition-all bg-slate-900 ${currentGalleryIndex === idx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}>
+                        {isVideoUrl(img) ? (
+                          <video src={img} preload="metadata" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={img} alt="Mini" className="w-full h-full object-cover" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -412,107 +527,21 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
           </div>
         </div>
 
-        {/* BLOQUE 3: ANTES Y DESPUÉS RESPONSIVO */}
-        {selectedProperty.comparables?.length > 0 && (
+        {/* BLOQUE 3: OBRAS REALIZADAS — sólo cuando la documentación no se muestra ya arriba (BLOQUE 1) */}
+        {selectedProperty.comparables?.length > 0 && !mostrarObraArriba && (
           <div className="bg-slate-950 text-white rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800 w-full mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-4 border-b border-slate-900">
               <div>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white m-0">
-                  {isEnProceso ? '🚧 Avance de la Obra' : '📐 El Proceso de Obra: Antes y Después'}
+                  {isRealizada ? '📐 Documentación de la Reforma Realizada' : '📐 Estudio de Obra: Antes y Después'}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  {isEnProceso
-                    ? 'Así va progresando cada ambiente, en tiempo real.'
-                    : 'Deslizá el control central para visualizar el cambio estructural realizado por nuestro estudio.'}
+                  Así fue el proceso de esta reforma, ambiente por ambiente: antes, durante y resultado final.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedProperty.comparables.map((comp, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveComparableIndex(idx)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    activeComparableIndex === idx ? 'bg-orange-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {comp.spaceName}
-                </button>
-              ))}
-            </div>
-
-            {(() => {
-              const activeComp = selectedProperty.comparables[activeComparableIndex];
-
-              const columnas = [
-                { key: 'antes', label: 'Antes', badge: 'bg-amber-600', media: activeComp.antesMedia || [], caption: activeComp.descripcionAntes, vacio: 'Aún no hay fotos del estado inicial.' },
-                { key: 'durante', label: 'Durante', badge: 'bg-orange-600', media: activeComp.duranteMedia || [], caption: activeComp.descripcionDurante, vacio: 'Todavía no hay avance cargado.' },
-                { key: 'actual', label: 'Actual', badge: 'bg-emerald-600', media: activeComp.actualMedia || [], caption: activeComp.descripcionActual, vacio: 'Todavía no hay fotos del estado actual.' }
-              ];
-
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {columnas.map(col => {
-                    const carouselKey = `${activeComparableIndex}-${col.key}`;
-                    const idx = getCarouselIdx(carouselKey, col.media.length);
-                    const item = col.media[idx];
-
-                    return (
-                      <div key={col.key}>
-                        <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-video">
-                          {item ? (
-                            <>
-                              {item.tipo === 'video' ? (
-                                <video src={item.url} controls className="w-full h-full object-cover" />
-                              ) : (
-                                <img src={item.url} alt={col.label} className="w-full h-full object-cover" />
-                              )}
-                              {col.media.length > 1 && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => stepCarousel(carouselKey, col.media.length, -1)}
-                                    className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                                  >
-                                    ‹
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => stepCarousel(carouselKey, col.media.length, 1)}
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
-                                  >
-                                    ›
-                                  </button>
-                                  <span className="absolute right-1.5 bottom-1.5 z-20 bg-slate-950/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
-                                    {idx + 1}/{col.media.length}
-                                  </span>
-                                </>
-                              )}
-                              <span className={`absolute left-2 top-2 z-20 ${col.badge} text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none`}>
-                                {col.label}
-                              </span>
-                            </>
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600 text-[10px] text-center px-3">
-                              {col.vacio}
-                            </div>
-                          )}
-                        </div>
-                        {item?.descripcion && (
-                          <p className="text-[10px] text-slate-400 mt-1 italic leading-relaxed">{item.descripcion}</p>
-                        )}
-                        {col.caption && (
-                          <p className="mt-2 bg-slate-900/50 p-2 rounded-lg text-[11px] text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
-                            📌 {col.caption}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+            {renderObraShowcase()}
 
             <div className="mt-4 pt-4 border-t border-slate-900 text-xs text-slate-400 font-light">
               <strong>Historia técnica:</strong> {selectedProperty.reformStory || selectedProperty.historia_reforma}
