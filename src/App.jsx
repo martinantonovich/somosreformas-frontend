@@ -129,19 +129,47 @@ export default function App() {
             ).map(img => img.urlImagen || img.url_imagen) || []
           )];
 
-          // 3. Mapeamos los comparables
-          const comparablesMapeados = prop.comparables?.map(comp => ({
-            spaceName: comp.nombreEspacio || 'Espacio Principal',
-            before: comp.urlAntes,
-            after: comp.urlDespues,
-            description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.',
-            video: comp.urlVideo || null,
-            procesoMedia: (comp.procesoMedia || []).map(m => ({
+          // 3. Mapeamos los comparables: 3 columnas (Antes/Durante/Actual) según la etapa de cada archivo.
+          // "Actual" es siempre la última tanda subida; al subir una nueva, la anterior pasa a "Durante"
+          // (esa rotación se hace en el admin al guardar, acá solo mostramos lo que ya viene clasificado).
+          const comparablesMapeados = prop.comparables?.map(comp => {
+            const todosMedia = (comp.procesoMedia || []).map(m => ({
               url: m.urlMedia,
               tipo: m.tipoMedia,
-              descripcion: m.descripcion || ''
-            }))
-          })) || [];
+              descripcion: m.descripcion || '',
+              etapa: m.etapa || 'DURANTE'
+            }));
+
+            const antesMedia = todosMedia.filter(m => m.etapa === 'ANTES');
+            const duranteMedia = todosMedia.filter(m => m.etapa === 'DURANTE');
+            const actualMedia = todosMedia.filter(m => m.etapa === 'ACTUAL');
+
+            // Compatibilidad con reformas cargadas antes de este esquema de 3 columnas
+            if (antesMedia.length === 0 && comp.urlAntes) {
+              antesMedia.push({ url: comp.urlAntes, tipo: 'imagen', descripcion: '' });
+            }
+            if (actualMedia.length === 0 && comp.urlDespues) {
+              actualMedia.push({ url: comp.urlDespues, tipo: 'imagen', descripcion: '' });
+            }
+            if (duranteMedia.length === 0 && comp.urlVideo) {
+              duranteMedia.push({ url: comp.urlVideo, tipo: 'video', descripcion: '' });
+            }
+
+            return {
+              spaceName: comp.nombreEspacio || 'Espacio Principal',
+              before: comp.urlAntes,
+              after: comp.urlDespues,
+              description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.',
+              video: comp.urlVideo || null,
+              procesoMedia: todosMedia,
+              antesMedia,
+              duranteMedia,
+              actualMedia,
+              descripcionAntes: comp.descripcionAntes || '',
+              descripcionDurante: comp.descripcionDurante || '',
+              descripcionActual: comp.descripcionActual || ''
+            };
+          }) || [];
 
           // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen
           return {

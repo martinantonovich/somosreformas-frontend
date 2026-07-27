@@ -5,8 +5,18 @@ import { isVideoUrl } from '../utils/media';
 
 export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
-  const [compareSliderVal, setCompareSliderVal] = useState(50);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  const [carouselIdx, setCarouselIdx] = useState({});
+
+  // 🎠 Índice del carrusel de cada columna (Antes/Durante/Actual), independiente por ambiente.
+  const getCarouselIdx = (key, len) => {
+    if (len <= 0) return 0;
+    const raw = carouselIdx[key] ?? 0;
+    return ((raw % len) + len) % len;
+  };
+  const stepCarousel = (key, len, dir) => {
+    setCarouselIdx(prev => ({ ...prev, [key]: ((prev[key] ?? 0) + dir + len) % len }));
+  };
 
   if (!selectedProperty) return null;
     console.log("selectedProperty completo:", selectedProperty);
@@ -422,7 +432,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               {selectedProperty.comparables.map((comp, idx) => (
                 <button
                   key={idx}
-                  onClick={() => { setActiveComparableIndex(idx); setCompareSliderVal(50); }}
+                  onClick={() => setActiveComparableIndex(idx)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                     activeComparableIndex === idx ? 'bg-orange-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
                   }`}
@@ -434,148 +444,72 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
 
             {(() => {
               const activeComp = selectedProperty.comparables[activeComparableIndex];
-              // El slider de arrastre solo tiene sentido comparando dos fotos; si alguno de los
-              // dos lados es un video, lo mostramos simplemente uno al lado del otro.
-              const hasBeforeAfter = activeComp.before && activeComp.after
-                && !isVideoUrl(activeComp.before) && !isVideoUrl(activeComp.after);
-              const hasBeforeAfterMixed = activeComp.before && activeComp.after
-                && (isVideoUrl(activeComp.before) || isVideoUrl(activeComp.after));
 
-              if (hasBeforeAfterMixed) {
-                return (
-                  <div className="grid grid-cols-2 gap-2 max-w-2xl mx-auto">
-                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl">
-                      {isVideoUrl(activeComp.before) ? (
-                        <video src={activeComp.before} controls className="w-full h-full object-contain" />
-                      ) : (
-                        <img src={activeComp.before} alt="Antes" className="w-full h-full object-contain" />
-                      )}
-                      <span className="absolute left-2 bottom-2 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">Antes</span>
-                    </div>
-                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl">
-                      {isVideoUrl(activeComp.after) ? (
-                        <video src={activeComp.after} controls className="w-full h-full object-contain" />
-                      ) : (
-                        <img src={activeComp.after} alt="Después" className="w-full h-full object-contain" />
-                      )}
-                      <span className="absolute right-2 bottom-2 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">Después</span>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (hasBeforeAfter) {
-                return (
-                  <>
-                    {/* CONTENEDOR AUTO-ADAPTABLE PARA EL ANTES Y DESPUÉS */}
-                    <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
-                      <img
-                        src={activeComp.after}
-                        alt="Después"
-                        className="w-full h-auto object-contain block"
-                      />
-                      <span className="absolute right-3 bottom-3 z-20 bg-emerald-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none">
-                        Terminado a Estrenar
-                      </span>
-
-                      <div
-                        className="absolute inset-y-0 left-0 overflow-hidden border-r border-white/40"
-                        style={{ width: `${compareSliderVal}%` }}
-                      >
-                        <img
-                          src={activeComp.before}
-                          alt="Antes"
-                          className="absolute top-0 left-0 h-full object-cover max-w-none"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            objectPosition: 'left center'
-                          }}
-                        />
-                        <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
-                          Antes de la Reforma
-                        </span>
-                      </div>
-
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={compareSliderVal}
-                        onChange={(e) => setCompareSliderVal(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30"
-                      />
-
-                      <div
-                        className="absolute inset-y-0 w-0.5 bg-white pointer-events-none z-20 flex items-center justify-center"
-                        style={{ left: `${compareSliderVal}%` }}
-                      >
-                        <div className="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow-2xl flex items-center justify-center text-xs text-white">
-                          ↔
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center space-x-3">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">Deslice para comparar</span>
-                      <input type="range" min="0" max="100" value={compareSliderVal} onChange={(e) => setCompareSliderVal(e.target.value)} className="flex-grow h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 py-1" />
-                    </div>
-                  </>
-                );
-              }
-
-              if (activeComp.before) {
-                return (
-                  <div className="relative w-full max-w-2xl mx-auto rounded-xl overflow-hidden bg-slate-950 select-none border border-slate-800 shadow-2xl">
-                    {isVideoUrl(activeComp.before) ? (
-                      <video src={activeComp.before} controls className="w-full h-auto object-contain block" />
-                    ) : (
-                      <img src={activeComp.before} alt="Estado antes de comenzar" className="w-full h-auto object-contain block" />
-                    )}
-                    <span className="absolute left-3 bottom-3 z-20 bg-amber-600 text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
-                      Estado antes de comenzar
-                    </span>
-                  </div>
-                );
-              }
-
-              return null;
-            })()}
-
-            <p className="mt-4 bg-slate-900/50 p-3 rounded-lg text-xs text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
-              📌 {selectedProperty.comparables[activeComparableIndex].description}
-            </p>
-
-            {/* 🎬 PROCESO DE LA OBRA: fotos/videos del avance, siempre visibles (no un toggle escondido) */}
-            {(() => {
-              const activeComp = selectedProperty.comparables[activeComparableIndex];
-              const procesoItems = activeComp.procesoMedia?.length > 0
-                ? activeComp.procesoMedia
-                : (activeComp.video ? [{ url: activeComp.video, tipo: 'video', descripcion: '' }] : []);
-
-              if (procesoItems.length === 0) return null;
+              const columnas = [
+                { key: 'antes', label: 'Antes', badge: 'bg-amber-600', media: activeComp.antesMedia || [], caption: activeComp.descripcionAntes, vacio: 'Aún no hay fotos del estado inicial.' },
+                { key: 'durante', label: 'Durante', badge: 'bg-orange-600', media: activeComp.duranteMedia || [], caption: activeComp.descripcionDurante, vacio: 'Todavía no hay avance cargado.' },
+                { key: 'actual', label: 'Actual', badge: 'bg-emerald-600', media: activeComp.actualMedia || [], caption: activeComp.descripcionActual, vacio: 'Todavía no hay fotos del estado actual.' }
+              ];
 
               return (
-                <div className="mt-4 pt-4 border-t border-slate-900">
-                  <h4 className="font-extrabold text-xs uppercase tracking-wider text-white mb-1">🎬 Proceso de la Obra</h4>
-                  <p className="text-[11px] text-slate-400 mb-3">Así fue avanzando la reforma de este ambiente hasta llegar al resultado final.</p>
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                    {procesoItems.map((item, itemIdx) => (
-                      <div key={itemIdx} className="flex-shrink-0 w-52 sm:w-60 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                        <div className="aspect-video w-full bg-black">
-                          {item.tipo === 'video' ? (
-                            <video src={item.url} controls className="w-full h-full object-cover" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {columnas.map(col => {
+                    const carouselKey = `${activeComparableIndex}-${col.key}`;
+                    const idx = getCarouselIdx(carouselKey, col.media.length);
+                    const item = col.media[idx];
+
+                    return (
+                      <div key={col.key}>
+                        <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-video">
+                          {item ? (
+                            <>
+                              {item.tipo === 'video' ? (
+                                <video src={item.url} controls className="w-full h-full object-cover" />
+                              ) : (
+                                <img src={item.url} alt={col.label} className="w-full h-full object-cover" />
+                              )}
+                              {col.media.length > 1 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => stepCarousel(carouselKey, col.media.length, -1)}
+                                    className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                                  >
+                                    ‹
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => stepCarousel(carouselKey, col.media.length, 1)}
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-slate-950/70 hover:bg-slate-950 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                                  >
+                                    ›
+                                  </button>
+                                  <span className="absolute right-1.5 bottom-1.5 z-20 bg-slate-950/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
+                                    {idx + 1}/{col.media.length}
+                                  </span>
+                                </>
+                              )}
+                              <span className={`absolute left-2 top-2 z-20 ${col.badge} text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded shadow pointer-events-none`}>
+                                {col.label}
+                              </span>
+                            </>
                           ) : (
-                            <img src={item.url} alt={item.descripcion || 'Proceso de la obra'} className="w-full h-full object-cover" />
+                            <div className="w-full h-full flex items-center justify-center text-slate-600 text-[10px] text-center px-3">
+                              {col.vacio}
+                            </div>
                           )}
                         </div>
-                        {item.descripcion && (
-                          <p className="text-[10px] text-slate-300 p-2 leading-relaxed m-0">{item.descripcion}</p>
+                        {item?.descripcion && (
+                          <p className="text-[10px] text-slate-400 mt-1 italic leading-relaxed">{item.descripcion}</p>
+                        )}
+                        {col.caption && (
+                          <p className="mt-2 bg-slate-900/50 p-2 rounded-lg text-[11px] text-slate-300 leading-relaxed italic border border-slate-900/80 m-0">
+                            📌 {col.caption}
+                          </p>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })()}

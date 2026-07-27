@@ -99,7 +99,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     setIsUploading(true);
     const cloudName = "dldibpwyr";
     const uploadPreset = "somos_reformas_preset";
-    const isProcesoMedia = field === 'procesoMedia';
+    const usaObjetoMedia = field === 'antesMedia' || field === 'duranteMedia' || field === 'actualMedia';
 
     try {
       const archivosVacios = Array.from(files).filter(f => f.size === 0).map(f => f.name);
@@ -127,7 +127,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
           throw new Error(errorData?.error?.message ? `"${file.name}": ${errorData.error.message}` : "Error en la subida a Cloudinary");
         }
         const data = await response.json();
-        return isProcesoMedia ? { url: data.secure_url, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : data.secure_url;
+        return usaObjetoMedia ? { url: data.secure_url, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : data.secure_url;
       });
 
       const uploadedResults = await Promise.all(uploadPromises);
@@ -143,26 +143,33 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
           return { ...prev, galleryUrls: combined };
         });
         triggerToast(`¡${uploadedUrls.length} imágenes añadidas!`, "success");
-      } else if (field === 'compBefore' && index !== null) {
+      } else if (field === 'antesMedia' && index !== null) {
         setNewProp(prev => {
           const updatedComps = [...prev.comparables];
-          updatedComps[index].before = uploadedUrls[0];
+          const current = updatedComps[index].antesMedia || [];
+          updatedComps[index] = { ...updatedComps[index], antesMedia: [...current, ...uploadedResults] };
           return { ...prev, comparables: updatedComps };
         });
-      } else if (field === 'compAfter' && index !== null) {
+        triggerToast(`¡${uploadedResults.length} archivo(s) agregados a "Antes"!`, "success");
+      } else if (field === 'duranteMedia' && index !== null) {
         setNewProp(prev => {
           const updatedComps = [...prev.comparables];
-          updatedComps[index].after = uploadedUrls[0];
+          const current = updatedComps[index].duranteMedia || [];
+          updatedComps[index] = { ...updatedComps[index], duranteMedia: [...current, ...uploadedResults] };
           return { ...prev, comparables: updatedComps };
         });
-      } else if (field === 'procesoMedia' && index !== null) {
+        triggerToast(`¡${uploadedResults.length} archivo(s) agregados a "Durante"!`, "success");
+      } else if (field === 'actualMedia' && index !== null) {
         setNewProp(prev => {
           const updatedComps = [...prev.comparables];
-          const current = updatedComps[index].procesoMedia || [];
-          updatedComps[index] = { ...updatedComps[index], procesoMedia: [...current, ...uploadedResults] };
+          const comp = updatedComps[index];
+          // 🔄 Rotación: lo que estaba en "Actual" pasa a formar parte del historial en "Durante",
+          // y lo recién subido se convierte en la nueva "Actual".
+          const duranteConHistoria = [...(comp.duranteMedia || []), ...(comp.actualMedia || [])];
+          updatedComps[index] = { ...comp, duranteMedia: duranteConHistoria, actualMedia: [...uploadedResults] };
           return { ...prev, comparables: updatedComps };
         });
-        triggerToast(`¡${uploadedResults.length} archivo(s) de proceso añadidos!`, "success");
+        triggerToast(`¡"Actual" actualizado! Lo anterior pasó a "Durante".`, "success");
       }
     } catch (error) {
       console.error(error);
@@ -175,7 +182,11 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   const addComparableSpace = () => {
     setNewProp(prev => ({
       ...prev,
-      comparables: [...prev.comparables, { spaceName: '', before: '', after: '', descripcion: '', video: '', procesoMedia: [] }]
+      comparables: [...prev.comparables, {
+        spaceName: '',
+        descripcionAntes: '', descripcionDurante: '', descripcionActual: '',
+        antesMedia: [], duranteMedia: [], actualMedia: []
+      }]
     }));
   };
 
@@ -191,23 +202,24 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     });
   };
 
-  const removeProcesoMedia = (compIndex, mediaIndex) => {
+  // field: 'antesMedia' | 'duranteMedia' | 'actualMedia'
+  const removeMediaItem = (compIndex, field, mediaIndex) => {
     setNewProp(prev => {
       const updatedComps = [...prev.comparables];
       updatedComps[compIndex] = {
         ...updatedComps[compIndex],
-        procesoMedia: updatedComps[compIndex].procesoMedia.filter((_, i) => i !== mediaIndex)
+        [field]: updatedComps[compIndex][field].filter((_, i) => i !== mediaIndex)
       };
       return { ...prev, comparables: updatedComps };
     });
   };
 
-  const updateProcesoMediaCaption = (compIndex, mediaIndex, text) => {
+  const updateMediaCaption = (compIndex, field, mediaIndex, text) => {
     setNewProp(prev => {
       const updatedComps = [...prev.comparables];
-      const list = [...updatedComps[compIndex].procesoMedia];
+      const list = [...updatedComps[compIndex][field]];
       list[mediaIndex] = { ...list[mediaIndex], descripcion: text };
-      updatedComps[compIndex] = { ...updatedComps[compIndex], procesoMedia: list };
+      updatedComps[compIndex] = { ...updatedComps[compIndex], [field]: list };
       return { ...prev, comparables: updatedComps };
     });
   };
@@ -241,18 +253,28 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       }
     });
 
+    const construirListaEtapa = (lista, etapa) => (lista || []).filter(m => m.url).map(m => ({
+      urlMedia: m.url,
+      tipoMedia: m.tipo,
+      descripcion: m.descripcion?.trim() || null,
+      etapa
+    }));
+
     const comparablesPayload = newProp.comparables
-      .filter(c => c.spaceName?.trim() && (c.before?.trim() || c.after?.trim() || c.procesoMedia?.length > 0))
+      .filter(c => c.spaceName?.trim() && (
+        c.antesMedia?.length > 0 || c.duranteMedia?.length > 0 || c.actualMedia?.length > 0
+      ))
       .map(c => ({
         nombreEspacio: c.spaceName || 'Espacio Común',
-        urlAntes: c.before?.trim() || null,
-        urlDespues: c.after?.trim() || null,
-        descripcion: c.descripcion?.trim() || "Reforma premium por Somos Reformas.",
-        procesoMedia: (c.procesoMedia || []).filter(m => m.url).map(m => ({
-          urlMedia: m.url,
-          tipoMedia: m.tipo,
-          descripcion: m.descripcion?.trim() || null
-        }))
+        descripcion: "Reforma premium por Somos Reformas.",
+        descripcionAntes: c.descripcionAntes?.trim() || null,
+        descripcionDurante: c.descripcionDurante?.trim() || null,
+        descripcionActual: c.descripcionActual?.trim() || null,
+        procesoMedia: [
+          ...construirListaEtapa(c.antesMedia, 'ANTES'),
+          ...construirListaEtapa(c.duranteMedia, 'DURANTE'),
+          ...construirListaEtapa(c.actualMedia, 'ACTUAL')
+        ]
       }));
 
     const propertyPayload = {
@@ -460,11 +482,12 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
     const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.spaceName || '',
-      before: c.before || '',
-      after: c.after || '',
-      descripcion: c.description || c.descripcion || '',
-      video: c.video || '',
-      procesoMedia: c.procesoMedia || []
+      descripcionAntes: c.descripcionAntes || '',
+      descripcionDurante: c.descripcionDurante || '',
+      descripcionActual: c.descripcionActual || c.description || c.descripcion || '',
+      antesMedia: c.antesMedia || [],
+      duranteMedia: c.duranteMedia || [],
+      actualMedia: c.actualMedia || []
     }));
 
     setNewProp({
@@ -518,8 +541,21 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   // ya con el estado cambiado, para que el admin revise/complete la foto de "después" antes de guardar
   const handleMarkAsRealizada = (p) => {
     handleStartEdit(p);
-    setNewProp(prev => ({ ...prev, estadoReforma: 'REALIZADA' }));
-    triggerToast('Revisá la foto de "después" de cada ambiente y guardá para confirmar.', 'info');
+    setNewProp(prev => {
+      const actualUrls = (prev.comparables || [])
+        .flatMap(c => (c.actualMedia || []).map(m => m.url))
+        .filter(Boolean);
+      const yaExistentes = new Set((prev.existingImages || []).map(img => img.url));
+      const nuevasSugeridas = [...new Set(actualUrls)]
+        .filter(url => !yaExistentes.has(url))
+        .map(url => ({ url, incluirEnPdf: false }));
+      return {
+        ...prev,
+        estadoReforma: 'REALIZADA',
+        existingImages: [...(prev.existingImages || []), ...nuevasSugeridas]
+      };
+    });
+    triggerToast('Revisá las fotos sugeridas de "Actual" antes de guardar como Realizada.', 'info');
   };
 
   const handleAdminLoginSubmit = (e) => {
@@ -887,80 +923,56 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                         
                         <input type="text" required placeholder="Nombre del espacio (Ej: Living)" value={comp.spaceName || ''} onChange={(e) => handleComparableChange(idx, 'spaceName', e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[11px]" />
                         
-                        <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          {/* FOTO ANTES */}
-                          <div>
-                            <label className="text-slate-500 font-bold block mb-1">Antes de la Reforma</label>
-                            {comp.before && (
-                              <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
-                                {isVideoUrl(comp.before) ? (
-                                  <video src={comp.before} controls className="w-full h-full object-cover" />
-                                ) : (
-                                  <img src={comp.before} alt="Antes" className="w-full h-full object-cover" />
-                                )}
-                              </div>
-                            )}
-                            <input type="file" accept="image/*,video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compBefore', idx)} className="w-full text-slate-400 text-[10px]" />
-                          </div>
-
-                          {/* FOTO DESPUÉS */}
-                          <div>
-                            <label className="text-slate-500 font-bold block mb-1">
-                              Después de la Reforma{newProp.estadoReforma === 'EN_PROCESO' && ' (opcional, se completa al finalizar)'}
-                            </label>
-                            {comp.after && (
-                              <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 mb-1 bg-slate-900">
-                                {isVideoUrl(comp.after) ? (
-                                  <video src={comp.after} controls className="w-full h-full object-cover" />
-                                ) : (
-                                  <img src={comp.after} alt="Después" className="w-full h-full object-cover" />
-                                )}
-                              </div>
-                            )}
-                            <input type="file" accept="image/*,video/*" onChange={(e) => uploadImagesToCloudinary(e, 'compAfter', idx)} className="w-full text-slate-400 text-[10px]" />
-                          </div>
-                        </div>
-
-                        <textarea
-                          rows="2"
-                          placeholder="Descripción del cambio en este ambiente..."
-                          value={comp.descripcion || ''}
-                          onChange={(e) => handleComparableChange(idx, 'descripcion', e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-white text-[11px]"
-                        />
-
-                        <div className="text-[10px] border-t border-slate-800/60 pt-2">
-                          <label className="text-slate-500 font-bold block mb-1">Fotos y videos del proceso de obra (opcional)</label>
-                          {comp.procesoMedia?.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mb-1.5">
-                              {comp.procesoMedia.map((media, mediaIdx) => (
-                                <div key={mediaIdx} className="bg-slate-900 border border-slate-800 rounded-lg p-1.5 space-y-1 relative">
-                                  <button
-                                    type="button"
-                                    onClick={() => removeProcesoMedia(idx, mediaIdx)}
-                                    className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow hover:bg-red-700 transition z-10"
-                                  >
-                                    ✕
-                                  </button>
-                                  <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 bg-slate-950">
-                                    {media.tipo === 'video' ? (
-                                      <video src={media.url} controls className="w-full h-full object-cover" />
-                                    ) : (
-                                      <img src={media.url} alt="Proceso" className="w-full h-full object-cover" />
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    placeholder="Ej: Semana 2, demolición..."
-                                    value={media.descripcion || ''}
-                                    onChange={(e) => updateProcesoMediaCaption(idx, mediaIdx, e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-white text-[9px]"
-                                  />
+                        <div className="grid grid-cols-3 gap-2 text-[10px]">
+                          {[
+                            { field: 'antesMedia', descField: 'descripcionAntes', label: 'Antes', hint: '' },
+                            { field: 'duranteMedia', descField: 'descripcionDurante', label: 'Durante', hint: '' },
+                            { field: 'actualMedia', descField: 'descripcionActual', label: 'Actual', hint: 'Al subir, lo actual pasa a "Durante"' }
+                          ].map(col => (
+                            <div key={col.field} className="space-y-1">
+                              <label className="text-slate-500 font-bold block">
+                                {col.label}
+                                {col.hint && <span className="block text-slate-600 font-normal normal-case leading-tight">{col.hint}</span>}
+                              </label>
+                              {comp[col.field]?.length > 0 && (
+                                <div className="space-y-1.5">
+                                  {comp[col.field].map((media, mediaIdx) => (
+                                    <div key={mediaIdx} className="bg-slate-900 border border-slate-800 rounded-lg p-1.5 space-y-1 relative">
+                                      <button
+                                        type="button"
+                                        onClick={() => removeMediaItem(idx, col.field, mediaIdx)}
+                                        className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow hover:bg-red-700 transition z-10"
+                                      >
+                                        ✕
+                                      </button>
+                                      <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 bg-slate-950">
+                                        {media.tipo === 'video' ? (
+                                          <video src={media.url} controls className="w-full h-full object-cover" />
+                                        ) : (
+                                          <img src={media.url} alt={col.label} className="w-full h-full object-cover" />
+                                        )}
+                                      </div>
+                                      <input
+                                        type="text"
+                                        placeholder="Descripción de la foto..."
+                                        value={media.descripcion || ''}
+                                        onChange={(e) => updateMediaCaption(idx, col.field, mediaIdx, e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded p-1 text-white text-[9px]"
+                                      />
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
+                              <input type="file" accept="image/*,video/*" multiple onChange={(e) => uploadImagesToCloudinary(e, col.field, idx)} className="w-full text-slate-400 text-[9px]" />
+                              <textarea
+                                rows="2"
+                                placeholder={`Texto para "${col.label}"...`}
+                                value={comp[col.descField] || ''}
+                                onChange={(e) => handleComparableChange(idx, col.descField, e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-800 rounded p-1 text-white text-[9px]"
+                              />
                             </div>
-                          )}
-                          <input type="file" accept="image/*,video/*" multiple onChange={(e) => uploadImagesToCloudinary(e, 'procesoMedia', idx)} className="w-full text-slate-400 text-[10px]" />
+                          ))}
                         </div>
                       </div>
                     ))}
