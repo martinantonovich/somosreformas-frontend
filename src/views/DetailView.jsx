@@ -17,6 +17,9 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const stepCarousel = (key, len, dir) => {
     setCarouselIdx(prev => ({ ...prev, [key]: ((prev[key] ?? 0) + dir + len) % len }));
   };
+  const goToCarouselIdx = (key, i) => {
+    setCarouselIdx(prev => ({ ...prev, [key]: i }));
+  };
 
   if (!selectedProperty) return null;
     console.log("selectedProperty completo:", selectedProperty);
@@ -164,7 +167,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
 
             return (
               <div key={col.key}>
-                <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-video">
+                <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg aspect-[3/4]">
                   {item ? (
                     <>
                       {item.tipo === 'video' ? (
@@ -203,6 +206,27 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
                     </div>
                   )}
                 </div>
+
+                {/* Miniaturas, igual que en la galería principal */}
+                {col.media.length > 1 && (
+                  <div className="flex space-x-1.5 overflow-x-auto pb-1 mt-1.5 scrollbar-thin">
+                    {col.media.map((m, mIdx) => (
+                      <button
+                        key={mIdx}
+                        type="button"
+                        onClick={() => goToCarouselIdx(carouselKey, mIdx)}
+                        className={`relative shrink-0 w-12 h-9 rounded-md overflow-hidden border-2 transition-all bg-slate-900 ${idx === mIdx ? 'border-orange-500 scale-95 opacity-100' : 'border-transparent opacity-60'}`}
+                      >
+                        {m.tipo === 'video' ? (
+                          <video src={m.url} preload="metadata" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={m.url} alt="Mini" className="w-full h-full object-cover" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {item?.descripcion && (
                   <p className="text-[10px] text-slate-400 mt-1 italic leading-relaxed">{item.descripcion}</p>
                 )}
