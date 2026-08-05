@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import RichTextEditor from '../components/RichTextEditor';
 import { isVideoUrl } from '../utils/media';
+import { mapearComparablesDesdeBackend } from '../utils/comparables';
 
 export default function AdminView({ setProperties, properties, navigateTo, triggerToast, cotizacionDolar, setCotizacionDolar }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -11,6 +12,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  // El listado viene sin comparables (liviano); al editar pedimos el detalle completo por id.
+  const [cargandoComparables, setCargandoComparables] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
   // 💵 Cotización del dólar (para comparar Venta -USD- contra Alquiler -ARS- por su valor real)
@@ -227,7 +230,14 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   // 🚀 ENVÍO ESTRUCTURADO HACIA SPRING BOOT
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    
+
+    // Defensa extra además del disabled del botón: si todavía no llegaron las fotos de
+    // reforma completas, no dejamos guardar (se pisarían con un comparables vacío).
+    if (cargandoComparables) {
+      triggerToast('Esperá a que terminen de cargar las fotos de reforma antes de guardar.', 'error');
+      return;
+    }
+
     // Consolidamos todas las imágenes del formulario (objetos {url, incluirEnPdf})
     let listaCompletaImgs = [...(newProp.existingImages || [])];
 
@@ -353,19 +363,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
           .map(img => img.urlImagen || img.url_imagen)
       )];
 
-      // 📐 3. Mapeo seguro de comparables (Antes y Después) resolviendo las propiedades en inglés/español
-      const comparablesFinal = (savedProperty.comparables || []).map(c => ({
-        spaceName: c.spaceName || c.nombreEspacio || c.nombre_espacio || 'Espacio Principal',
-        before: c.before || c.urlAntes || c.url_antes || '',
-        after: c.after || c.urlDespues || c.url_despues || '',
-        description: c.description || c.descripcion || 'Transformación integral realizada por Somos Reformas.',
-        video: c.video || c.urlVideo || c.url_video || null,
-        procesoMedia: (c.procesoMedia || []).map(m => ({
-          url: m.urlMedia || m.url_media,
-          tipo: m.tipoMedia || m.tipo_media || 'imagen',
-          descripcion: m.descripcion || ''
-        }))
-      }));
+      // 📐 3. Mapeo de comparables (3 columnas Antes/Durante/Actual) con el mismo util que usa el resto del sitio
+      const comparablesFinal = mapearComparablesDesdeBackend(savedProperty.comparables);
 
       // Sincronizamos con el formato exacto en inglés que App.jsx distribuye a HomeView y DetailView
       const formattedProperty = {
@@ -535,27 +534,42 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     });
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // El listado es liviano (sin comparables); recién acá pedimos el detalle completo por id
+    // para traer las fotos de "Estudio de Obra"/reforma y completar el formulario.
+    if (!prop.id) return Promise.resolve();
+    setCargandoComparables(true);
+    return fetch(`${apiUrl}/api/propiedades/${prop.id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) return;
+        const formattedCompsCompletos = mapearComparablesDesdeBackend(data.comparables);
+        setNewProp(prev => ({ ...prev, comparables: formattedCompsCompletos }));
+      })
+      .catch(() => triggerToast('No se pudieron cargar las fotos de reforma de esta propiedad. Volvé a intentar antes de guardar.', 'error'))
+      .finally(() => setCargandoComparables(false));
   };
 
   // ✓ Atajo para pasar una reforma "En Proceso" a "Realizada": precarga el form de edición
   // ya con el estado cambiado, para que el admin revise/complete la foto de "después" antes de guardar
   const handleMarkAsRealizada = (p) => {
-    handleStartEdit(p);
-    setNewProp(prev => {
-      const actualUrls = (prev.comparables || [])
-        .flatMap(c => (c.actualMedia || []).map(m => m.url))
-        .filter(Boolean);
-      const yaExistentes = new Set((prev.existingImages || []).map(img => img.url));
-      const nuevasSugeridas = [...new Set(actualUrls)]
-        .filter(url => !yaExistentes.has(url))
-        .map(url => ({ url, incluirEnPdf: false }));
-      return {
-        ...prev,
-        estadoReforma: 'REALIZADA',
-        existingImages: [...(prev.existingImages || []), ...nuevasSugeridas]
-      };
+    handleStartEdit(p).then(() => {
+      setNewProp(prev => {
+        const actualUrls = (prev.comparables || [])
+          .flatMap(c => (c.actualMedia || []).map(m => m.url))
+          .filter(Boolean);
+        const yaExistentes = new Set((prev.existingImages || []).map(img => img.url));
+        const nuevasSugeridas = [...new Set(actualUrls)]
+          .filter(url => !yaExistentes.has(url))
+          .map(url => ({ url, incluirEnPdf: false }));
+        return {
+          ...prev,
+          estadoReforma: 'REALIZADA',
+          existingImages: [...(prev.existingImages || []), ...nuevasSugeridas]
+        };
+      });
+      triggerToast('Revisá las fotos sugeridas de "Actual" antes de guardar como Realizada.', 'info');
     });
-    triggerToast('Revisá las fotos sugeridas de "Actual" antes de guardar como Realizada.', 'info');
   };
 
   const handleAdminLoginSubmit = (e) => {
@@ -994,8 +1008,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                   </div>
                 )}
 
-                <button type="submit" disabled={isUploading} className="w-full bg-orange-600 text-white font-bold p-3.5 rounded-xl uppercase tracking-wider disabled:bg-slate-800 disabled:text-slate-500">
-                  {isUploading ? 'Procesando archivos...' : isEditing ? '✓ Guardar Cambios' : '✓ Publicar'}
+                <button type="submit" disabled={isUploading || cargandoComparables} className="w-full bg-orange-600 text-white font-bold p-3.5 rounded-xl uppercase tracking-wider disabled:bg-slate-800 disabled:text-slate-500">
+                  {isUploading ? 'Procesando archivos...' : cargandoComparables ? 'Cargando fotos de reforma...' : isEditing ? '✓ Guardar Cambios' : '✓ Publicar'}
                 </button>
               </form>
             </div>

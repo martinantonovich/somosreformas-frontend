@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 // Podés dejar esta importación por ahora, pero ya no la usaremos como estado inicial
 import { INITIAL_PROPERTIES } from './data/properties.js';
+import { mapearComparablesDesdeBackend } from './utils/comparables.js';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
@@ -13,6 +14,84 @@ import PoliticaPrivacidadView from './views/PoliticaPrivacidadView.jsx';
 // Carga diferida: AdminView (y el editor de texto enriquecido que usa adentro) sólo se
 // descargan al entrar al panel, no en cada visita al sitio público.
 const AdminView = lazy(() => import('./views/AdminView.jsx'));
+
+// 🗺️ Traduce una propiedad "cruda" del backend al formato que consumen las vistas.
+// Se usa tanto para el listado liviano (sin comparables) como para el detalle completo
+// bajo demanda (con comparables) — en ese último caso simplemente vienen poblados.
+function mapearPropiedad(prop) {
+  // 1. Buscamos la portada contemplando cómo Jackson formatea los booleanos
+  const imagenPortadaObj = prop.imagenes?.find(img =>
+    img.esPortada === true || img.es_portada === true || img.portada === true
+  );
+
+  const coverImageUrl = imagenPortadaObj
+    ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
+    : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200';
+
+  // 2. Filtramos el resto de las imágenes excluyendo la portada
+  const galeriaUrls = prop.imagenes?.filter(img =>
+    !(img.esPortada === true || img.es_portada === true || img.portada === true)
+  ).map(img => img.urlImagen || img.url_imagen) || [];
+
+  if (galeriaUrls.length === 0) {
+    galeriaUrls.push(coverImageUrl);
+  }
+
+  // Fotos marcadas a mano por el admin para el PDF (si no eligió ninguna, el PDF usa las primeras de la galería)
+  const pdfImages = [...new Set(
+    prop.imagenes?.filter(img =>
+      img.incluirEnPdf === true || img.incluir_en_pdf === true
+    ).map(img => img.urlImagen || img.url_imagen) || []
+  )];
+
+  // 3. Comparables: en el listado liviano vienen ausentes (undefined) y el resultado es [];
+  // en el detalle completo (fetch por id) vienen poblados con procesoMedia/etapa.
+  const comparablesMapeados = mapearComparablesDesdeBackend(prop.comparables);
+
+  // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen
+  return {
+    id: prop.id,
+    title: prop.titulo,
+    slug: prop.slug,
+    price: prop.precio,
+    location: prop.localidad,
+    operation: prop.operacion,
+    type: prop.tipo,
+    rooms: prop.ambientes,
+    beds: prop.dormitorios,
+    baths: prop.banos,
+    sizeTotal: prop.m2Totales,
+    sizeCovered: prop.m2Cubiertos,
+    sizeSemiCovered: prop.m2Semicubiertos || 0,
+    sizeUncovered: prop.m2Descubiertos || 0,
+    floor: prop.pisoPlanta || 'PB',
+    expensas: prop.expensas ?? 0,
+    bankEligible: prop.aptoBanco ? 'Sí' : 'No',
+    direccion: prop.direccion,
+    description: prop.descripcion,
+    reformStory: prop.historiaReforma,
+    latitud: prop.latitud,
+    longitud: prop.longitud,
+    coverImage: coverImageUrl,
+    gallery: galeriaUrls,
+    pdfImages,
+    comparables: comparablesMapeados,
+    services: {
+      electricidad: prop.servicioElectricidad,
+      gasNatural: prop.servicioGasNatural,
+      cloaca: prop.servicioCloaca
+    },
+    estadoActual: prop.estadoActual,
+    antiguedad: prop.antiguedad,
+    orientacion: prop.orientacion,
+    cochera: prop.cochera ? 'Sí' : 'No',
+    calefaccion: prop.calefaccion,
+    sistemaAgua: prop.sistemaAgua,
+    estadoReforma: prop.estadoReforma || null,
+    estadoPropiedad: prop.estadoPropiedad || null,
+    orden: prop.orden ?? null
+  };
+}
 
 export default function App() {
   const [view, setView] = useState('home'); 
@@ -29,6 +108,17 @@ export default function App() {
   // 🧭 Mapeo único entre pantallas y URLs, usado tanto para navegar como para leer la URL
   const pathByView = { home: '/', reformas: '/reformas', cotizador: '/cotizador', admin: '/admin', politica: '/politica-de-privacidad' };
 
+  // 🔎 El listado (/api/propiedades) viene sin comparables (liviano, para la home/reformas).
+  // Al entrar al detalle de UNA propiedad puntual, pedimos el objeto completo por id para
+  // traer recién ahí las fotos de "Estudio de Obra"/reforma, que es lo pesado.
+  const enriquecerDetalle = (propertyLigera) => {
+    if (!propertyLigera?.id) return;
+    fetch(`${apiUrl}/api/propiedades/${propertyLigera.id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setSelectedProperty(mapearPropiedad(data)); })
+      .catch(error => console.error('Error cargando el detalle completo de la propiedad:', error));
+  };
+
   // 🌐 Toda navegación pasa por acá: cambia la pantalla Y la URL a la vez (soporta atrás/adelante del navegador)
   const navigateTo = (viewName, property = null) => {
     const url = viewName === 'detail' && property?.slug
@@ -38,6 +128,7 @@ export default function App() {
     setSelectedProperty(property);
     setView(viewName);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (viewName === 'detail') enriquecerDetalle(property);
   };
 
   // 🔙 Soporte para los botones Atrás/Adelante del navegador: re-derivamos la pantalla desde la URL actual
@@ -55,6 +146,7 @@ export default function App() {
         if (propiedadEncontrada) {
           setSelectedProperty(propiedadEncontrada);
           setView('detail');
+          enriquecerDetalle(propiedadEncontrada);
           return;
         }
       }
@@ -102,119 +194,7 @@ export default function App() {
         return response.json();
       })
       .then(data => {
-        const mappedProperties = data.map(prop => {
-          
-          // 1. Buscamos la portada contemplando cómo Jackson formatea los booleanos
-          const imagenPortadaObj = prop.imagenes?.find(img => 
-            img.esPortada === true || img.es_portada === true || img.portada === true
-          );
-          
-          const coverImageUrl = imagenPortadaObj 
-            ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
-            : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200';
-
-          // 2. Filtramos el resto de las imágenes excluyendo la portada
-          const galeriaUrls = prop.imagenes?.filter(img => 
-            !(img.esPortada === true || img.es_portada === true || img.portada === true)
-          ).map(img => img.urlImagen || img.url_imagen) || [];
-          
-          if (galeriaUrls.length === 0) {
-            galeriaUrls.push(coverImageUrl);
-          }
-
-          // Fotos marcadas a mano por el admin para el PDF (si no eligió ninguna, el PDF usa las primeras de la galería)
-          const pdfImages = [...new Set(
-            prop.imagenes?.filter(img =>
-              img.incluirEnPdf === true || img.incluir_en_pdf === true
-            ).map(img => img.urlImagen || img.url_imagen) || []
-          )];
-
-          // 3. Mapeamos los comparables: 3 columnas (Antes/Durante/Actual) según la etapa de cada archivo.
-          // "Actual" es siempre la última tanda subida; al subir una nueva, la anterior pasa a "Durante"
-          // (esa rotación se hace en el admin al guardar, acá solo mostramos lo que ya viene clasificado).
-          const comparablesMapeados = prop.comparables?.map(comp => {
-            const todosMedia = (comp.procesoMedia || []).map(m => ({
-              url: m.urlMedia,
-              tipo: m.tipoMedia,
-              descripcion: m.descripcion || '',
-              etapa: m.etapa || 'DURANTE'
-            }));
-
-            const antesMedia = todosMedia.filter(m => m.etapa === 'ANTES');
-            const duranteMedia = todosMedia.filter(m => m.etapa === 'DURANTE');
-            const actualMedia = todosMedia.filter(m => m.etapa === 'ACTUAL');
-
-            // Compatibilidad con reformas cargadas antes de este esquema de 3 columnas
-            if (antesMedia.length === 0 && comp.urlAntes) {
-              antesMedia.push({ url: comp.urlAntes, tipo: 'imagen', descripcion: '' });
-            }
-            if (actualMedia.length === 0 && comp.urlDespues) {
-              actualMedia.push({ url: comp.urlDespues, tipo: 'imagen', descripcion: '' });
-            }
-            if (duranteMedia.length === 0 && comp.urlVideo) {
-              duranteMedia.push({ url: comp.urlVideo, tipo: 'video', descripcion: '' });
-            }
-
-            return {
-              spaceName: comp.nombreEspacio || 'Espacio Principal',
-              before: comp.urlAntes,
-              after: comp.urlDespues,
-              description: comp.descripcion || 'Transformación integral realizada por Somos Reformas.',
-              video: comp.urlVideo || null,
-              procesoMedia: todosMedia,
-              antesMedia,
-              duranteMedia,
-              actualMedia,
-              descripcionAntes: comp.descripcionAntes || '',
-              descripcionDurante: comp.descripcionDurante || '',
-              descripcionActual: comp.descripcionActual || ''
-            };
-          }) || [];
-
-          // Retornamos el formato exacto que tus vistas HomeView y DetailView consumen
-          return {
-            id: prop.id,
-            title: prop.titulo,
-            slug: prop.slug,
-            price: prop.precio,
-            location: prop.localidad,
-            operation: prop.operacion,
-            type: prop.tipo,
-            rooms: prop.ambientes,
-            beds: prop.dormitorios,
-            baths: prop.banos,
-            sizeTotal: prop.m2Totales,
-            sizeCovered: prop.m2Cubiertos,
-            sizeSemiCovered: prop.m2Semicubiertos || 0,
-            sizeUncovered: prop.m2Descubiertos || 0,
-            floor: prop.pisoPlanta || 'PB',
-            expensas: prop.expensas ?? 0,
-            bankEligible: prop.aptoBanco ? 'Sí' : 'No',
-            direccion: prop.direccion,
-            description: prop.descripcion,
-            reformStory: prop.historiaReforma,
-            latitud: prop.latitud,
-            longitud: prop.longitud,
-            coverImage: coverImageUrl,
-            gallery: galeriaUrls,
-            pdfImages,
-            comparables: comparablesMapeados,
-            services: {
-              electricidad: prop.servicioElectricidad,
-              gasNatural: prop.servicioGasNatural,
-              cloaca: prop.servicioCloaca
-            },
-            estadoActual: prop.estadoActual,
-            antiguedad: prop.antiguedad,
-            orientacion: prop.orientacion,
-            cochera: prop.cochera ? 'Sí' : 'No',
-            calefaccion: prop.calefaccion,
-            sistemaAgua: prop.sistemaAgua,
-            estadoReforma: prop.estadoReforma || null,
-            estadoPropiedad: prop.estadoPropiedad || null,
-            orden: prop.orden ?? null
-          };
-        });
+        const mappedProperties = data.map(mapearPropiedad);
 
         // Guardamos la lista completa mapeada en tu estado global
         setProperties(mappedProperties);
@@ -229,6 +209,7 @@ export default function App() {
           if (propiedadEncontrada) {
             setSelectedProperty(propiedadEncontrada);
             setView('detail');
+            enriquecerDetalle(propiedadEncontrada);
           }
         } else if (propId) {
           // Búsqueda por ID tradicional (Retrocompatibilidad por si quedó un link viejo en WhatsApp/Mail)
@@ -236,6 +217,7 @@ export default function App() {
           if (propiedadEncontrada) {
             setSelectedProperty(propiedadEncontrada);
             setView('detail');
+            enriquecerDetalle(propiedadEncontrada);
           }
         }
       })
