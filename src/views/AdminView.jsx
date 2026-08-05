@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import RichTextEditor from '../components/RichTextEditor';
 import { isVideoUrl } from '../utils/media';
@@ -605,6 +605,12 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     }
   };
 
+  // 🔢 Catálogo ordenado por destacados (mismo criterio que la home): menor número primero,
+  // sin orden asignado al final.
+  const propiedadesOrdenadas = useMemo(() => {
+    return [...properties].sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
+  }, [properties]);
+
   return (
     <main className="flex-grow py-6 sm:py-8 bg-slate-950 text-slate-100 text-left min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
@@ -1017,10 +1023,10 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
             {/* 📋 CATÁLOGO LISTADO */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
-                <h3 className="font-extrabold text-white text-xs uppercase tracking-wider mb-4 m-0">Inmuebles en Catálogo ({properties.length})</h3>
+                <h3 className="font-extrabold text-white text-xs uppercase tracking-wider mb-4 m-0">Inmuebles en Catálogo ({propiedadesOrdenadas.length})</h3>
                 {/* 📱 VISTA EN TARJETAS PARA CELULARES (Se oculta automáticamente en PC) */}
                 <div className="block md:hidden space-y-3">
-                  {properties.map((p) => (
+                  {propiedadesOrdenadas.map((p) => (
                     <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3">
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
@@ -1089,7 +1095,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                       </tr>
                     </thead>
                     <tbody>
-                      {properties.map((p) => (
+                      {propiedadesOrdenadas.map((p) => (
                         <tr key={p.id} className="border-b border-slate-900/50 hover:bg-slate-900/40 transition">
                           <td className="py-3 font-semibold text-white">{p.titulo || p.title}</td>
                           <td className="py-3 text-slate-400">{p.tipo || p.type}</td>
