@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import { RICH_TEXT_CLASSES } from '../utils/richText';
 import { isVideoUrl } from '../utils/media';
+import { isComercial as esComercialProp, etiquetaOperacion } from '../utils/precio';
 
 export default function DetailView({ selectedProperty, navigateTo, triggerToast }) {
   const [activeComparableIndex, setActiveComparableIndex] = useState(0);
@@ -31,7 +32,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const isEnProceso = selectedProperty.estadoReforma === 'EN_PROCESO';
   const isRealizada = selectedProperty.estadoReforma === 'REALIZADA';
   const isReforma = isEnProceso || isRealizada;
-  const isComercial = selectedProperty.operation === 'Venta' || selectedProperty.operation === 'Alquiler';
+  const isComercial = esComercialProp(selectedProperty);
   // 🚧 Mientras la obra no está en venta/alquiler (en proceso, o realizada pero sin publicar todavía),
   // mostramos la documentación Antes/Durante/Actual arriba, en el lugar de la galería normal —
   // así se distingue claramente de una ficha de propiedad disponible. Al publicarla (isComercial),
@@ -67,7 +68,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8090';
   const getWhatsAppMessage = (property) => {
     if (!property) return '';
-    const esComercial = property.operation === 'Venta' || property.operation === 'Alquiler';
+    const esComercial = esComercialProp(property);
     if (esComercial) {
       return `¡Hola Somos Reformas! Estoy interesado/a en la propiedad: "${property.title}" ubicada en ${property.location}. Me gustaría agendar una visita.`;
     }
@@ -460,7 +461,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
             <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider m-0">
               Obra Finalizada <span className="text-slate-400 font-semibold normal-case">
                 {isComercial
-                  ? `— Esta reforma ya está lista y disponible para ${selectedProperty.operation === 'Venta' ? 'venta' : 'alquiler'}.`
+                  ? `— Esta reforma ya está lista y disponible para ${etiquetaOperacion(selectedProperty).toLowerCase()}.`
                   : '— Esta propiedad no está disponible para venta ni alquiler. Mostramos el proceso de la reforma.'}
               </span>
             </p>
@@ -474,7 +475,7 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
               {estadoPropiedadBadge && (
                 <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${estadoPropiedadBadge.className}`}>{estadoPropiedadBadge.label}</span>
               )}
-              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${isReforma ? 'bg-slate-800 text-slate-200' : 'bg-orange-100 text-orange-700'}`}>{selectedProperty.operation}</span>
+              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${isReforma ? 'bg-slate-800 text-slate-200' : 'bg-orange-100 text-orange-700'}`}>{etiquetaOperacion(selectedProperty)}</span>
               <span className="bg-slate-100 text-slate-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">{selectedProperty.type}</span>
               {isComercial && !isReforma && <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase px-2 py-0.5 rounded">A Estrenar</span>}
               {isComercial && !isReforma && selectedProperty.bankEligible === "Sí" && (
@@ -486,15 +487,27 @@ export default function DetailView({ selectedProperty, navigateTo, triggerToast 
             <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight m-0 leading-tight">{selectedProperty.title}</h1>
           </div>
           {isComercial ? (
-            <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-start">
-              <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Valor</span>
-              <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
-                {selectedProperty.operation === 'Venta' ? 'USD' : 'ARS'} {(selectedProperty.price ?? 0).toLocaleString('es-AR')}
-              </span>
-              {selectedProperty.operation === 'Alquiler' && selectedProperty.expensas > 0 && (
-                <span className="text-[10px] text-slate-500 font-bold">
-                  + Expensas ARS {selectedProperty.expensas.toLocaleString('es-AR')}
-                </span>
+            <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+              {selectedProperty.priceVenta != null && (
+                <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm flex-1 md:flex-none flex flex-row md:flex-col justify-between items-center md:items-start">
+                  <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Venta</span>
+                  <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
+                    USD {selectedProperty.priceVenta.toLocaleString('es-AR')}
+                  </span>
+                </div>
+              )}
+              {selectedProperty.priceAlquiler != null && (
+                <div className="bg-white border border-neutral-100 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-sm flex-1 md:flex-none flex flex-row md:flex-col justify-between items-center md:items-start">
+                  <span className="text-[9px] text-slate-400 font-bold uppercase block md:mb-0.5">Alquiler</span>
+                  <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
+                    ARS {selectedProperty.priceAlquiler.toLocaleString('es-AR')}
+                  </span>
+                  {selectedProperty.expensasAlquiler > 0 && (
+                    <span className="text-[10px] text-slate-500 font-bold">
+                      + Expensas ARS {selectedProperty.expensasAlquiler.toLocaleString('es-AR')}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           ) : isEnProceso ? (

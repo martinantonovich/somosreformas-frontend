@@ -173,19 +173,31 @@ export async function generarFichaPDF(property) {
   doc.text(sanitizeForPdf(`${property.direccion ? property.direccion + ' — ' : ''}${property.location || ''}`), MARGIN, state.y);
   state.y += 8;
 
-  if (property.operation !== 'No Disponible') {
-    const moneda = property.operation === 'Venta' ? 'USD' : 'ARS';
-    const expensasTexto = property.operation === 'Alquiler' && property.expensas > 0
-      ? ` + Expensas ARS ${property.expensas.toLocaleString('es-AR')}`
+  // Una propiedad puede estar en Venta y Alquiler a la vez: una etiqueta apilada por cada una.
+  const preciosParaPdf = [];
+  if (property.priceVenta != null) {
+    preciosParaPdf.push(`Venta — USD ${property.priceVenta.toLocaleString('es-AR')}`);
+  }
+  if (property.priceAlquiler != null) {
+    const expensasTexto = property.expensasAlquiler > 0
+      ? ` + Expensas ARS ${property.expensasAlquiler.toLocaleString('es-AR')}`
       : '';
-    const texto = sanitizeForPdf(`${property.operation} — ${moneda} ${(property.price ?? 0).toLocaleString('es-AR')}${expensasTexto}`);
+    preciosParaPdf.push(`Alquiler — ARS ${property.priceAlquiler.toLocaleString('es-AR')}${expensasTexto}`);
+  }
+
+  if (preciosParaPdf.length > 0) {
+    asegurarEspacio(state, 12 * preciosParaPdf.length);
     doc.setFont('helvetica', 'bold').setFontSize(12);
-    const anchoTexto = doc.getTextWidth(texto);
-    doc.setFillColor(...ORANGE);
-    doc.roundedRect(MARGIN, state.y - 5.5, anchoTexto + 8, 9, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.text(texto, MARGIN + 4, state.y);
-    state.y += 12;
+    preciosParaPdf.forEach(textoRaw => {
+      const texto = sanitizeForPdf(textoRaw);
+      const anchoTexto = doc.getTextWidth(texto);
+      doc.setFillColor(...ORANGE);
+      doc.roundedRect(MARGIN, state.y - 5.5, anchoTexto + 8, 9, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(texto, MARGIN + 4, state.y);
+      state.y += 11;
+    });
+    state.y += 1;
   } else {
     state.y += 4;
   }

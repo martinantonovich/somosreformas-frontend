@@ -3,6 +3,7 @@ import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropi
 import RichTextEditor from '../components/RichTextEditor';
 import { isVideoUrl } from '../utils/media';
 import { mapearComparablesDesdeBackend } from '../utils/comparables';
+import { etiquetaOperacion } from '../utils/precio';
 
 export default function AdminView({ setProperties, properties, navigateTo, triggerToast, cotizacionDolar, setCotizacionDolar }) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -51,12 +52,14 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
   
   // 🎯 ESTADO TOTALMENTE ALINEADO A LA NUEVA ESPECIFICACIÓN
   const [newProp, setNewProp] = useState({
-    title: '', 
-    price: '',              // En USD si es venta, en ARS si es alquiler
-    expensas: '0',          // Solo Alquiler
+    title: '',
+    sellChecked: true,      // ¿Se vende? Puede estar tildado junto con rentChecked
+    priceVenta: '',         // USD, sólo si sellChecked
+    rentChecked: false,     // ¿Se alquila?
+    priceAlquiler: '',      // ARS, sólo si rentChecked
+    expensasAlquiler: '0',  // Sólo si rentChecked
     location: 'La Plata, Buenos Aires',
-    operation: 'Venta',     // 'Venta', 'Alquiler' o 'No Disponible'
-    estadoReforma: '',      // '', 'EN_PROCESO' o 'REALIZADA' (independiente de operation)
+    estadoReforma: '',      // '', 'EN_PROCESO' o 'REALIZADA' (independiente de venta/alquiler)
     estadoPropiedad: '',    // '', 'RESERVADO', 'EN_NEGOCIACION', 'VENDIDO' o 'ALQUILADO' (cartel comercial)
     orden: '',              // Prioridad manual para el orden "Destacados" en la home (menor = primero)
     type: 'Departamento',
@@ -290,10 +293,10 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     const propertyPayload = {
       titulo: newProp.title,
       slug: newProp.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
-      precio: parseFloat(newProp.price) || 0,
-      expensas: newProp.operation === 'Alquiler' ? parseFloat(newProp.expensas) : 0,
+      precioVenta: newProp.sellChecked ? (parseFloat(newProp.priceVenta) || 0) : null,
+      precioAlquiler: newProp.rentChecked ? (parseFloat(newProp.priceAlquiler) || 0) : null,
+      expensasAlquiler: newProp.rentChecked ? (parseFloat(newProp.expensasAlquiler) || 0) : null,
       localidad: newProp.location,
-      operacion: newProp.operation,
       tipo: newProp.type,
       direccion: newProp.address,
       pisoPlanta: newProp.floor,
@@ -310,7 +313,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       antiguedad: parseInt(newProp.antiguedad) || 0,
       orientacion: newProp.orientacion,
       cochera: newProp.cochera === 'Sí',
-      aptoBanco: newProp.operation === 'Venta' ? (newProp.bankEligible === 'Sí') : false,
+      aptoBanco: newProp.sellChecked ? (newProp.bankEligible === 'Sí') : false,
       servicioElectricidad: newProp.servLuz,
       servicioGasNatural: newProp.servGas,
       servicioCloaca: newProp.servAgua,
@@ -371,9 +374,9 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         id: savedProperty.id,
         title: savedProperty.titulo || savedProperty.title,
         slug: savedProperty.slug,
-        price: savedProperty.precio || savedProperty.price,
+        priceVenta: savedProperty.precioVenta ?? savedProperty.priceVenta ?? null,
+        priceAlquiler: savedProperty.precioAlquiler ?? savedProperty.priceAlquiler ?? null,
         location: savedProperty.localidad || savedProperty.location,
-        operation: savedProperty.operacion || savedProperty.operation,
         type: savedProperty.tipo || savedProperty.type,
         rooms: savedProperty.ambientes || savedProperty.rooms,
         beds: savedProperty.dormitorios || savedProperty.beds,
@@ -383,7 +386,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         sizeSemiCovered: savedProperty.m2Semicubiertos || savedProperty.sizeSemiCovered || 0,
         sizeUncovered: savedProperty.m2Descubiertos || savedProperty.sizeUncovered || 0,
         floor: savedProperty.pisoPlanta || savedProperty.floor || 'PB',
-        expensas: savedProperty.expensas ?? 0,
+        expensasAlquiler: savedProperty.expensasAlquiler ?? 0,
         bankEligible: savedProperty.aptoBanco === true || savedProperty.bankEligible === 'Sí' ? 'Sí' : 'No',
         direccion: savedProperty.direccion || savedProperty.address,
         description: savedProperty.descripcion || savedProperty.description,
@@ -491,10 +494,12 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
     setNewProp({
       title: prop.title || '',
-      price: (prop.price ?? '').toString(),
-      expensas: (prop.expensas ?? '0').toString(),
+      sellChecked: prop.priceVenta != null,
+      priceVenta: (prop.priceVenta ?? '').toString(),
+      rentChecked: prop.priceAlquiler != null,
+      priceAlquiler: (prop.priceAlquiler ?? '').toString(),
+      expensasAlquiler: (prop.expensasAlquiler ?? '0').toString(),
       location: prop.location || 'La Plata, Buenos Aires',
-      operation: prop.operation || 'Venta', // Garantiza leer el formato de App.jsx
       estadoReforma: prop.estadoReforma || '',
       estadoPropiedad: prop.estadoPropiedad || '',
       orden: prop.orden ?? '',
@@ -611,6 +616,26 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     return [...properties].sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
   }, [properties]);
 
+  // 💲 Precio(s) y color de la etiqueta para las filas del catálogo (puede tener Venta, Alquiler, o ambas)
+  const formatPrecioCatalogo = (p) => {
+    const partes = [];
+    if (p.priceVenta != null) partes.push(`USD ${p.priceVenta.toLocaleString('es-AR')}`);
+    if (p.priceAlquiler != null) partes.push(`ARS ${p.priceAlquiler.toLocaleString('es-AR')}`);
+    return partes.length > 0 ? partes.join(' / ') : 'Sin precio';
+  };
+  const colorOperacionTexto = (p) => {
+    if (p.priceVenta != null && p.priceAlquiler != null) return 'text-purple-400';
+    if (p.priceVenta != null) return 'text-orange-400';
+    if (p.priceAlquiler != null) return 'text-blue-400';
+    return 'text-slate-500';
+  };
+  const colorOperacionPill = (p) => {
+    if (p.priceVenta != null && p.priceAlquiler != null) return 'bg-purple-950 text-purple-400';
+    if (p.priceVenta != null) return 'bg-orange-950 text-orange-400';
+    if (p.priceAlquiler != null) return 'bg-blue-950 text-blue-400';
+    return 'bg-slate-800 text-slate-400';
+  };
+
   return (
     <main className="flex-grow py-6 sm:py-8 bg-slate-950 text-slate-100 text-left min-h-screen">
       <div className="max-w-6xl mx-auto px-4">
@@ -665,14 +690,22 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
 
               <form onSubmit={handleFormSubmit} className="space-y-3 text-xs text-slate-300">
                 
-                {/* Tipo de Operación: Gatillo de cambio estructural */}
+                {/* Modalidad: puede estar en venta, en alquiler, o las dos a la vez */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Tipo de Operación</label>
-                  <select value={newProp.operation} onChange={(e) => setNewProp({...newProp, operation: e.target.value})} className="w-full bg-slate-950 border border-orange-500/30 rounded-lg p-2 font-bold text-white">
-                    <option value="Venta">Venta (Maneja USD)</option>
-                    <option value="Alquiler">Alquiler (Maneja ARS y Expensas)</option>
-                    <option value="No Disponible">No Disponible (No se vende ni alquila)</option>
-                  </select>
+                  <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Modalidad</label>
+                  <div className="flex gap-4 bg-slate-950 border border-orange-500/30 rounded-lg p-2">
+                    <label className="flex items-center gap-1.5 text-white font-bold cursor-pointer">
+                      <input type="checkbox" checked={newProp.sellChecked} onChange={(e) => setNewProp({...newProp, sellChecked: e.target.checked})} className="w-4 h-4 accent-orange-600" />
+                      Se vende
+                    </label>
+                    <label className="flex items-center gap-1.5 text-white font-bold cursor-pointer">
+                      <input type="checkbox" checked={newProp.rentChecked} onChange={(e) => setNewProp({...newProp, rentChecked: e.target.checked})} className="w-4 h-4 accent-blue-600" />
+                      Se alquila
+                    </label>
+                  </div>
+                  {!newProp.sellChecked && !newProp.rentChecked && (
+                    <p className="text-[10px] text-slate-500 mt-1">Sin tildar ninguna, queda como "No Disponible".</p>
+                  )}
                 </div>
 
                 {/* ¿Es una reforma? Independiente de la operación: una reforma Realizada puede además estar en Venta/Alquiler */}
@@ -710,30 +743,33 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                   <input type="text" required placeholder="Ej: PH Remodelado a Nuevo" value={newProp.title || ''} onChange={(e) => setNewProp({...newProp, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" />
                 </div>
 
-                {/* Bloque de Precios Dinámico: sólo aplica si está en Venta o Alquiler */}
-                {(newProp.operation === 'Venta' || newProp.operation === 'Alquiler') && (
+                {/* Precio de Venta (USD) + Apto Crédito: sólo si "Se vende" está tildado */}
+                {newProp.sellChecked && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                        {newProp.operation === 'Venta' ? 'Valor (USD)' : 'Valor Mensual (ARS)'}
-                      </label>
-                      <input type="number" required placeholder="Valor" value={newProp.price || ''} onChange={(e) => setNewProp({...newProp, price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono font-bold" />
+                      <label className="block text-[10px] font-bold uppercase text-orange-400 mb-1">Valor Venta (USD)</label>
+                      <input type="number" required placeholder="Valor" value={newProp.priceVenta || ''} onChange={(e) => setNewProp({...newProp, priceVenta: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono font-bold" />
                     </div>
                     <div>
-                      {newProp.operation === 'Alquiler' ? (
-                        <>
-                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Expensas (ARS)</label>
-                          <input type="number" placeholder="0" value={newProp.expensas || ''} onChange={(e) => setNewProp({...newProp, expensas: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" />
-                        </>
-                      ) : (
-                        <>
-                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Apto Crédito</label>
-                          <select value={newProp.bankEligible} onChange={(e) => setNewProp({...newProp, bankEligible: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white">
-                            <option value="Sí">Sí</option>
-                            <option value="No">No</option>
-                          </select>
-                        </>
-                      )}
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Apto Crédito</label>
+                      <select value={newProp.bankEligible} onChange={(e) => setNewProp({...newProp, bankEligible: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white">
+                        <option value="Sí">Sí</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Precio de Alquiler (ARS) + Expensas: sólo si "Se alquila" está tildado */}
+                {newProp.rentChecked && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-blue-400 mb-1">Valor Alquiler (ARS)</label>
+                      <input type="number" required placeholder="Valor" value={newProp.priceAlquiler || ''} onChange={(e) => setNewProp({...newProp, priceAlquiler: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Expensas (ARS)</label>
+                      <input type="number" placeholder="0" value={newProp.expensasAlquiler || ''} onChange={(e) => setNewProp({...newProp, expensasAlquiler: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" />
                     </div>
                   </div>
                 )}
@@ -1032,7 +1068,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                         <div className="min-w-0">
                           <h4 className="font-bold text-white text-sm truncate">{p.titulo || p.title}</h4>
                           <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                            <span>{p.tipo || p.type} — <span className={`font-semibold uppercase ${p.operation === 'Venta' ? 'text-orange-400' : p.operation === 'No Disponible' ? 'text-slate-500' : 'text-blue-400'}`}>{p.operation}</span></span>
+                            <span>{p.tipo || p.type} — <span className={`font-semibold uppercase ${colorOperacionTexto(p)}`}>{etiquetaOperacion(p)}</span></span>
                             {p.estadoReforma === 'EN_PROCESO' && <span className="bg-amber-950 text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">En Proceso</span>}
                             {p.estadoReforma === 'REALIZADA' && <span className="bg-purple-950 text-purple-400 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">Realizada</span>}
                             {getEstadoPropiedadBadge(p.estadoPropiedad) && (
@@ -1041,7 +1077,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                           </p>
                         </div>
                         <span className="text-xs font-bold text-white bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg font-mono whitespace-nowrap flex-shrink-0">
-                          {p.operation === 'No Disponible' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
+                          {formatPrecioCatalogo(p)}
                         </span>
                       </div>
 
@@ -1101,7 +1137,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                           <td className="py-3 text-slate-400">{p.tipo || p.type}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${p.operation === 'Venta' ? 'bg-orange-950 text-orange-400' : p.operation === 'No Disponible' ? 'bg-slate-800 text-slate-400' : 'bg-blue-950 text-blue-400'}`}>{p.operation}</span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${colorOperacionPill(p)}`}>{etiquetaOperacion(p)}</span>
                               {p.estadoReforma === 'EN_PROCESO' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950 text-amber-400">En Proceso</span>}
                               {p.estadoReforma === 'REALIZADA' && <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-950 text-purple-400">Realizada</span>}
                               {getEstadoPropiedadBadge(p.estadoPropiedad) && (
@@ -1110,7 +1146,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             </div>
                           </td>
                           <td className="py-3 font-bold text-white font-mono">
-                            {p.operation === 'No Disponible' ? 'Sin precio' : `${p.operation === 'Venta' ? 'USD' : 'ARS'} ${(p.price ?? 0).toLocaleString('es-AR')}`}
+                            {formatPrecioCatalogo(p)}
                           </td>
                           <td className="py-3 text-right space-x-3 whitespace-nowrap">
                             <button onClick={() => { navigateTo(p.estadoReforma ? 'reformas' : 'home'); triggerToast("Redirigido.", "info"); }} className="text-slate-400 hover:text-white transition">Ver</button>

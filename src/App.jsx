@@ -53,9 +53,9 @@ function mapearPropiedad(prop) {
     id: prop.id,
     title: prop.titulo,
     slug: prop.slug,
-    price: prop.precio,
+    priceVenta: prop.precioVenta ?? null,
+    priceAlquiler: prop.precioAlquiler ?? null,
     location: prop.localidad,
-    operation: prop.operacion,
     type: prop.tipo,
     rooms: prop.ambientes,
     beds: prop.dormitorios,
@@ -65,7 +65,7 @@ function mapearPropiedad(prop) {
     sizeSemiCovered: prop.m2Semicubiertos || 0,
     sizeUncovered: prop.m2Descubiertos || 0,
     floor: prop.pisoPlanta || 'PB',
-    expensas: prop.expensas ?? 0,
+    expensasAlquiler: prop.expensasAlquiler ?? 0,
     bankEligible: prop.aptoBanco ? 'Sí' : 'No',
     direccion: prop.direccion,
     description: prop.descripcion,
@@ -228,7 +228,7 @@ export default function App() {
 
   // 🏗️ El catálogo comercial (Venta/Alquiler) y las reformas (En Proceso/Realizada) ya no son excluyentes:
   // una reforma Realizada puede estar también en venta/alquiler si todavía no se vendió.
-  const saleRentProperties = properties.filter(p => p.operation === 'Venta' || p.operation === 'Alquiler');
+  const saleRentProperties = properties.filter(p => p.priceVenta != null || p.priceAlquiler != null);
   const reformasEnProceso = properties.filter(p => p.estadoReforma === 'EN_PROCESO');
   const reformasRealizadas = properties.filter(p => p.estadoReforma === 'REALIZADA');
 

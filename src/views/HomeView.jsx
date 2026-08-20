@@ -31,10 +31,19 @@ function PropertyCard({ property, navigateToDetail }) {
           <img src={currentImage} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         )}
 
-        {/* Badge de tipo de Operación */}
-        <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-slate-950 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider">
-          {property.operation}
-        </span>
+        {/* Badges de operación: puede ser Venta, Alquiler, o las dos a la vez */}
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1">
+          {property.priceVenta != null && (
+            <span className="bg-orange-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider">
+              Venta
+            </span>
+          )}
+          {property.priceAlquiler != null && (
+            <span className="bg-blue-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider">
+              Alquiler
+            </span>
+          )}
+        </div>
 
         {/* ✨ CORRECCIÓN BADGE ESTADO: Muestra "A estrenar" en vez de property.status vacío */}
         <span className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[8px] sm:text-[9px] font-extrabold uppercase px-2 py-0.5 sm:py-1 rounded tracking-wider bg-emerald-600 text-white">
@@ -87,15 +96,24 @@ function PropertyCard({ property, navigateToDetail }) {
       {/* Contenido de la Tarjeta */}
       <div className="p-4 sm:p-5 flex-grow flex flex-col justify-between">
         <div>
-          <div className="flex justify-between items-baseline mb-1.5 sm:mb-2">
-            {/* ✨ CORRECCIÓN CRÍTICA DE PRECIO Y MONEDA DINÁMICA */}
+          <div className="flex justify-between items-start mb-1.5 sm:mb-2 gap-2">
+            {/* Si tiene los 2 precios, Venta se muestra grande y Alquiler más chico debajo */}
             <span
               onClick={() => navigateToDetail(property)}
-              className="text-base sm:text-lg font-black text-slate-950 cursor-pointer hover:text-orange-600 transition-colors"
+              className="cursor-pointer hover:text-orange-600 transition-colors"
             >
-              {property.operation === 'Venta' ? 'USD' : 'ARS'} {(property.price ?? 0).toLocaleString('es-AR')}
+              {property.priceVenta != null && (
+                <span className="block text-base sm:text-lg font-black text-slate-950">
+                  USD {property.priceVenta.toLocaleString('es-AR')}
+                </span>
+              )}
+              {property.priceAlquiler != null && (
+                <span className={`block font-black text-slate-950 ${property.priceVenta != null ? 'text-xs sm:text-sm text-slate-500' : 'text-base sm:text-lg'}`}>
+                  ARS {property.priceAlquiler.toLocaleString('es-AR')}
+                </span>
+              )}
             </span>
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-neutral-100 py-0.5 px-2 rounded">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-neutral-100 py-0.5 px-2 rounded shrink-0">
               {property.type}
             </span>
           </div>
@@ -145,11 +163,13 @@ export default function HomeView({ properties, navigateToDetail, enProcesoCount 
     return properties.filter(prop => {
       const matchLoc = filterLocation === '' || (prop.location || '').toLowerCase().includes(filterLocation.toLowerCase());
       const matchType = filterType === '' || prop.type === filterType;
-      const matchOp = filterOperation === '' || prop.operation === filterOperation;
+      const matchOp = filterOperation === '' ||
+        (filterOperation === 'Venta' ? prop.priceVenta != null : prop.priceAlquiler != null);
       const matchRooms = filterRooms === '' || prop.rooms === parseInt(filterRooms);
       // Comparamos por valor real en USD, no por el número duro: así un alquiler en ARS
-      // no queda mal comparado contra una venta en USD.
-      const matchPrice = filterMaxPrice === '' || valorRealUsd(prop, cotizacionDolar) <= parseInt(filterMaxPrice);
+      // no queda mal comparado contra una venta en USD. Si hay un filtro de operación activo,
+      // usamos el precio de ESA operación puntual; si no, la regla mixta (Venta si tiene).
+      const matchPrice = filterMaxPrice === '' || valorRealUsd(prop, cotizacionDolar, filterOperation) <= parseInt(filterMaxPrice);
       return matchLoc && matchType && matchOp && matchRooms && matchPrice;
     });
   }, [properties, filterLocation, filterType, filterOperation, filterRooms, filterMaxPrice, cotizacionDolar]);
@@ -157,9 +177,9 @@ export default function HomeView({ properties, navigateToDetail, enProcesoCount 
   const sortedProperties = useMemo(() => {
     const lista = [...filteredProperties];
     if (sortOrder === 'precio_desc') {
-      lista.sort((a, b) => valorRealUsd(b, cotizacionDolar) - valorRealUsd(a, cotizacionDolar));
+      lista.sort((a, b) => valorRealUsd(b, cotizacionDolar, filterOperation) - valorRealUsd(a, cotizacionDolar, filterOperation));
     } else if (sortOrder === 'precio_asc') {
-      lista.sort((a, b) => valorRealUsd(a, cotizacionDolar) - valorRealUsd(b, cotizacionDolar));
+      lista.sort((a, b) => valorRealUsd(a, cotizacionDolar, filterOperation) - valorRealUsd(b, cotizacionDolar, filterOperation));
     } else {
       // Destacados: por el orden manual que carga el admin (menor número primero); sin orden asignado, al final.
       lista.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
