@@ -113,6 +113,21 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         throw new Error(`El archivo "${archivosVacios[0]}" llegó vacío (0 bytes) al navegador. Probá guardarlo de nuevo (ej. re-exportar o re-descargar la imagen) y volvé a subirlo.`);
       }
 
+      // Límites del plan de Cloudinary: si se supera, Cloudinary responde 413 y el navegador
+      // lo muestra como un error de CORS confuso (no manda los headers de CORS en ese caso).
+      // Lo chequeamos antes de intentar subir para dar un mensaje claro.
+      const LIMITE_VIDEO_MB = 100;
+      const LIMITE_IMAGEN_MB = 10;
+      const archivoPesado = Array.from(files).find(f => {
+        const limiteMb = f.type.startsWith('video') ? LIMITE_VIDEO_MB : LIMITE_IMAGEN_MB;
+        return f.size > limiteMb * 1024 * 1024;
+      });
+      if (archivoPesado) {
+        const limiteMb = archivoPesado.type.startsWith('video') ? LIMITE_VIDEO_MB : LIMITE_IMAGEN_MB;
+        const pesoMb = (archivoPesado.size / (1024 * 1024)).toFixed(1);
+        throw new Error(`"${archivoPesado.name}" pesa ${pesoMb} MB, y el plan de Cloudinary permite hasta ${limiteMb} MB para ${archivoPesado.type.startsWith('video') ? 'videos' : 'imágenes'}. Comprimilo o recortalo antes de subirlo.`);
+      }
+
       const uploadPromises = Array.from(files).map(async (file) => {
         console.log(`📤 Subiendo "${file.name}" (${(file.size / 1024).toFixed(0)} KB, ${file.type})`);
         // Detectamos el tipo por archivo (no por campo): así la galería y el antes/después
