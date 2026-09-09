@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import RichTextEditor from '../components/RichTextEditor';
-import { isVideoUrl } from '../utils/media';
+import { isVideoUrl, cloudinaryDisplayUrl } from '../utils/media';
 import { mapearComparablesDesdeBackend } from '../utils/comparables';
 import { etiquetaOperacion } from '../utils/precio';
 
@@ -148,7 +148,10 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
           throw new Error(errorData?.error?.message ? `"${file.name}": ${errorData.error.message}` : "Error en la subida a Cloudinary");
         }
         const data = await response.json();
-        return usaObjetoMedia ? { url: data.secure_url, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : data.secure_url;
+        // f_auto,q_auto para fotos: sin esto, una foto HEIC (formato por defecto de iPhone)
+        // queda inservible como link de descarga en vez de mostrarse como imagen.
+        const urlParaMostrar = fileResourceType === 'image' ? cloudinaryDisplayUrl(data.secure_url) : data.secure_url;
+        return usaObjetoMedia ? { url: urlParaMostrar, tipo: fileResourceType === 'video' ? 'video' : 'imagen', descripcion: '' } : urlParaMostrar;
       });
 
       const uploadedResults = await Promise.all(uploadPromises);

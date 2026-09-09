@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 // Podés dejar esta importación por ahora, pero ya no la usaremos como estado inicial
 import { INITIAL_PROPERTIES } from './data/properties.js';
 import { mapearComparablesDesdeBackend } from './utils/comparables.js';
+import { cloudinaryDisplayUrl } from './utils/media.js';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
@@ -24,14 +25,14 @@ function mapearPropiedad(prop) {
     img.esPortada === true || img.es_portada === true || img.portada === true
   );
 
-  const coverImageUrl = imagenPortadaObj
+  const coverImageUrl = cloudinaryDisplayUrl(imagenPortadaObj
     ? (imagenPortadaObj.urlImagen || imagenPortadaObj.url_imagen)
-    : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200';
+    : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200');
 
   // 2. Filtramos el resto de las imágenes excluyendo la portada
-  const galeriaUrls = prop.imagenes?.filter(img =>
+  const galeriaUrls = (prop.imagenes?.filter(img =>
     !(img.esPortada === true || img.es_portada === true || img.portada === true)
-  ).map(img => img.urlImagen || img.url_imagen) || [];
+  ).map(img => cloudinaryDisplayUrl(img.urlImagen || img.url_imagen)) || []);
 
   if (galeriaUrls.length === 0) {
     galeriaUrls.push(coverImageUrl);
@@ -41,7 +42,7 @@ function mapearPropiedad(prop) {
   const pdfImages = [...new Set(
     prop.imagenes?.filter(img =>
       img.incluirEnPdf === true || img.incluir_en_pdf === true
-    ).map(img => img.urlImagen || img.url_imagen) || []
+    ).map(img => cloudinaryDisplayUrl(img.urlImagen || img.url_imagen)) || []
   )];
 
   // 3. Comparables: en el listado liviano vienen ausentes (undefined) y el resultado es [];
