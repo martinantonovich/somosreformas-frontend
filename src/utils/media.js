@@ -14,5 +14,8 @@ export function cloudinaryDisplayUrl(url) {
   if (!url || typeof url !== 'string') return url;
   if (!url.includes('res.cloudinary.com') || !url.includes('/image/upload/')) return url;
   if (url.includes('/image/upload/f_auto')) return url; // ya tiene la transformación
-  return url.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
+  // f_auto y q_auto van separados por "/" (transformaciones encadenadas), NO por "," — el
+  // admin guarda temporalmente varias URLs juntas separadas por comas (galleryUrls), y una
+  // coma adentro de la URL misma la corta a la mitad ahí. Con "/" no hay ese choque.
+  return url.replace('/image/upload/', '/image/upload/f_auto/q_auto/');
 }
