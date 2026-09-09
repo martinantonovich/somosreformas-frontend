@@ -1,4 +1,4 @@
-import { cloudinaryDisplayUrl } from './media.js';
+import { cloudinaryDisplayUrl, aplicarSinSonido } from './media.js';
 
 // Mapea los comparables "crudos" que manda el backend (procesoMedia + etapa) al formato de
 // 3 columnas (antesMedia/duranteMedia/actualMedia) que usan tanto el sitio público (DetailView)
@@ -6,12 +6,16 @@ import { cloudinaryDisplayUrl } from './media.js';
 // lógica de agrupamiento por etapa en los dos lugares.
 export function mapearComparablesDesdeBackend(comparablesCrudos) {
   return (comparablesCrudos || []).map(comp => {
-    const todosMedia = (comp.procesoMedia || []).map(m => ({
-      url: cloudinaryDisplayUrl(m.urlMedia),
-      tipo: m.tipoMedia,
-      descripcion: m.descripcion || '',
-      etapa: m.etapa || 'DURANTE'
-    }));
+    const todosMedia = (comp.procesoMedia || []).map(m => {
+      const sinSonido = m.sinSonido === true || m.sin_sonido === true;
+      return {
+        url: aplicarSinSonido(cloudinaryDisplayUrl(m.urlMedia), sinSonido),
+        tipo: m.tipoMedia,
+        descripcion: m.descripcion || '',
+        etapa: m.etapa || 'DURANTE',
+        sinSonido
+      };
+    });
 
     const antesMedia = todosMedia.filter(m => m.etapa === 'ANTES');
     const duranteMedia = todosMedia.filter(m => m.etapa === 'DURANTE');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ESTADOS_PROPIEDAD, getEstadoPropiedadBadge } from '../utils/estadoPropiedad';
 import RichTextEditor from '../components/RichTextEditor';
-import { isVideoUrl, cloudinaryDisplayUrl } from '../utils/media';
+import { isVideoUrl, cloudinaryDisplayUrl, tieneSinSonido } from '../utils/media';
 import { mapearComparablesDesdeBackend } from '../utils/comparables';
 import { etiquetaOperacion } from '../utils/precio';
 
@@ -248,6 +248,17 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     });
   };
 
+  // 🔇 TOGGLE: marcar/desmarcar un video de Antes/Durante/Actual para que se reproduzca sin audio
+  const toggleSinSonidoMedia = (compIndex, field, mediaIndex) => {
+    setNewProp(prev => {
+      const updatedComps = [...prev.comparables];
+      const list = [...updatedComps[compIndex][field]];
+      list[mediaIndex] = { ...list[mediaIndex], sinSonido: !list[mediaIndex].sinSonido };
+      updatedComps[compIndex] = { ...updatedComps[compIndex], [field]: list };
+      return { ...prev, comparables: updatedComps };
+    });
+  };
+
   // 🚀 ENVÍO ESTRUCTURADO HACIA SPRING BOOT
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -266,7 +277,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       newProp.galleryUrls.split(',').forEach(url => {
         const urlLimpia = url.trim();
         if (urlLimpia && !listaCompletaImgs.some(img => img.url === urlLimpia)) {
-          listaCompletaImgs.push({ url: urlLimpia, incluirEnPdf: false });
+          listaCompletaImgs.push({ url: urlLimpia, incluirEnPdf: false, sinSonido: false });
         }
       });
     }
@@ -276,11 +287,11 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     const imagenesPayload = [];
     listaCompletaImgs.forEach((img, index) => {
       if (index === 0) {
-        imagenesPayload.push({ urlImagen: img.url, esPortada: true, incluirEnPdf: img.incluirEnPdf || false });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: true, incluirEnPdf: img.incluirEnPdf || false, sinSonido: img.sinSonido || false });
         // Se duplica al principio de las secundarias para que el carrusel público la contenga
-        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false, sinSonido: img.sinSonido || false });
       } else {
-        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false });
+        imagenesPayload.push({ urlImagen: img.url, esPortada: false, incluirEnPdf: img.incluirEnPdf || false, sinSonido: img.sinSonido || false });
       }
     });
 
@@ -288,7 +299,8 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
       urlMedia: m.url,
       tipoMedia: m.tipo,
       descripcion: m.descripcion?.trim() || null,
-      etapa
+      etapa,
+      sinSonido: m.sinSonido || false
     }));
 
     const comparablesPayload = newProp.comparables
@@ -466,6 +478,15 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
     });
   };
 
+  // 🔇 TOGGLE: marcar/desmarcar un video de la galería para que se reproduzca sin audio
+  const toggleSinSonidoGaleria = (index) => {
+    setNewProp(prev => {
+      const imagenes = [...(prev.existingImages || [])];
+      imagenes[index] = { ...imagenes[index], sinSonido: !imagenes[index].sinSonido };
+      return { ...prev, existingImages: imagenes };
+    });
+  };
+
   // ↔️ REORDENAR GALERÍA: la posición 0 es siempre la portada
   const moveExistingImage = (index, direction) => {
     setNewProp(prev => {
@@ -498,7 +519,7 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
         todasLasFotos.push(url.trim());
       }
     });
-    const todasLasFotosConFlag = todasLasFotos.map(url => ({ url, incluirEnPdf: pdfImagesSet.has(url) }));
+    const todasLasFotosConFlag = todasLasFotos.map(url => ({ url, incluirEnPdf: pdfImagesSet.has(url), sinSonido: tieneSinSonido(url) }));
 
     const formattedComps = (prop.comparables || []).map(c => ({
       spaceName: c.spaceName || '',
@@ -972,6 +993,18 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                             >
                               📄 PDF
                             </button>
+                            {isVideoUrl(urlString) && (
+                              <button
+                                type="button"
+                                onClick={() => toggleSinSonidoGaleria(index)}
+                                title="Reproducir sin sonido"
+                                className={`absolute bottom-0 left-0 text-[7px] font-black uppercase px-1.5 py-0.5 rounded-tr transition ${
+                                  img.sinSonido ? 'bg-emerald-600 text-white' : 'bg-slate-950/80 text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                🔇 Sin sonido
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -1019,11 +1052,23 @@ export default function AdminView({ setProperties, properties, navigateTo, trigg
                                       >
                                         ✕
                                       </button>
-                                      <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 bg-slate-950">
+                                      <div className="aspect-video w-full rounded overflow-hidden border border-slate-800 bg-slate-950 relative">
                                         {media.tipo === 'video' ? (
                                           <video src={media.url} controls className="w-full h-full object-cover" />
                                         ) : (
                                           <img src={media.url} alt={col.label} className="w-full h-full object-cover" />
+                                        )}
+                                        {media.tipo === 'video' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleSinSonidoMedia(idx, col.field, mediaIdx)}
+                                            title="Reproducir sin sonido"
+                                            className={`absolute bottom-0 left-0 text-[7px] font-black uppercase px-1 py-0.5 rounded-tr transition ${
+                                              media.sinSonido ? 'bg-emerald-600 text-white' : 'bg-slate-950/80 text-slate-400 hover:text-white'
+                                            }`}
+                                          >
+                                            🔇
+                                          </button>
                                         )}
                                       </div>
                                       <input
